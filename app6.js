@@ -1,16 +1,3 @@
-/*
-
-This is the client code for my version of world of pixels.
-I do not own this code, I simply have modified the default
-client of http://ourworldofpixels.com, using some of their
-administrators 3rd party scripts. I am grateful that they
-are allowing me to use this code, but I just wanted to
-state the majority of it is the default client from them
-so definitly go check their site out.
-
-- Sebastian
-
-*/
 /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -73,7 +60,7 @@ so definitly go check their site out.
 /******/ 	__webpack_require__.p = "/";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 2);
+/******/ 	return __webpack_require__(__webpack_require__.s = 3);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -107,7 +94,7 @@ exports.options = exports.PUBLIC_EVENTS = exports.EVENTS = exports.RANK = export
 
 var _global = __webpack_require__(0);
 
-var _misc = __webpack_require__(3);
+var _misc = __webpack_require__(2);
 
 var _toolset = __webpack_require__(18);
 
@@ -205,16 +192,16 @@ if ((0, _misc.storageEnabled)()) {
 
 var options = exports.options = (0, _misc.propertyDefaults)(userOptions, {
 	serverAddress: [{
-		default: !true,
-		title: 'Localhost',
-		proto: 'old',
-		url: 'ws://localhost:9000',
-		maxRetries: 1
-	}, {
 		default: true,
 		title: 'Official server',
 		proto: 'old',
 		url: 'ws://owopforfun.herokuapp.com'
+	}, {
+		default: false,
+		title: 'Localhost',
+		proto: 'old',
+		url: 'ws://owopforfun.herokuapp.com',
+		maxRetries: 1
 	}], // The server address that websockets connect to
 	fallbackFps: 30, // Fps used if requestAnimationFrame is not supported
 	maxChatBuffer: 256, // How many chat messages to retain in the chatbox
@@ -223,7 +210,6 @@ var options = exports.options = (0, _misc.propertyDefaults)(userOptions, {
 	movementSpeed: 1, /* Pixels per tick */
 	defaultWorld: 'main',
 	enableSounds: true,
-	enableIdView: true,
 	defaultZoom: 16,
 	zoomStrength: 1,
 	zoomLimitMin: 1,
@@ -232,8 +218,12 @@ var options = exports.options = (0, _misc.propertyDefaults)(userOptions, {
 	toolSetUrl: _toolset2.default,
 	unloadedPatternUrl: _unloaded2.default,
 	backgroundUrl: null,
-	/* Bug only affects Windows users with an old Intel graphics card driver */
+	/* Bug only affects Windows users with an Intel graphics card,
+  * since we can't easily know the client's GPU,
+  * activate for all windows users ¯\_(ツ)_/¯
+  */
 	chunkBugWorkaround: false // navigator.userAgent.indexOf('Windows NT') !== -1
+	/* Did it get fixed? we'll know soon! */
 });
 
 if (options.chunkBugWorkaround) {
@@ -248,1410 +238,6 @@ _global.eventSys.on(EVENTS.net.connecting, function (server) {
 
 /***/ }),
 /* 2 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-/*
- * TODO List: https://trello.com/b/v6F6isSv/worldofpixels
- * NOTE: Let's stick with the correct way of storing colors,
- * first byte should be red value: 0xAABBGGRR, or [r, g, b]
- */
-
-
-Object.defineProperty(exports, "__esModule", {
-	value: true
-});
-exports.playerListWindow = exports.playerListTable = exports.playerList = exports.sounds = exports.misc = exports.elements = exports.mouse = exports.keysDown = exports.statusMsg = exports.showPlayerList = exports.showDevChat = undefined;
-exports.revealSecrets = revealSecrets;
-
-var _normalizeWheel = __webpack_require__(15);
-
-var _anchorme = __webpack_require__(16);
-
-var _anchorme2 = _interopRequireDefault(_anchorme);
-
-var _conf = __webpack_require__(1);
-
-var _Bucket = __webpack_require__(9);
-
-var _misc = __webpack_require__(3);
-
-var _global = __webpack_require__(0);
-
-var _World = __webpack_require__(12);
-
-var _canvas_renderer = __webpack_require__(5);
-
-var _networking = __webpack_require__(8);
-
-var _local_player = __webpack_require__(6);
-
-var _all = __webpack_require__(21);
-
-var _windowsys = __webpack_require__(11);
-
-var _launch = __webpack_require__(25);
-
-var _launch2 = _interopRequireDefault(_launch);
-
-var _place = __webpack_require__(26);
-
-var _place2 = _interopRequireDefault(_place);
-
-var _click = __webpack_require__(27);
-
-var _click2 = _interopRequireDefault(_click);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.showDevChat = showDevChat;
-exports.showPlayerList = showPlayerList;
-exports.statusMsg = statusMsg;
-var keysDown = exports.keysDown = {};
-
-var mouse = exports.mouse = {
-	x: 0, /* pageX */
-	y: 0, /* pageY */
-	lastX: 0,
-	lastY: 0,
-	get worldX() {
-		return _canvas_renderer.camera.x * 16 + this.x / (_canvas_renderer.camera.zoom / 16);
-	},
-	get worldY() {
-		return _canvas_renderer.camera.y * 16 + this.y / (_canvas_renderer.camera.zoom / 16);
-	},
-	mouseDownWorldX: 0,
-	mouseDownWorldY: 0,
-	get tileX() {
-		return Math.floor(this.worldX / 16);
-	},
-	get tileY() {
-		return Math.floor(this.worldY / 16);
-	},
-	buttons: 0,
-	validTile: false,
-	insideViewport: false,
-	touches: [],
-	cancelMouseDown: function cancelMouseDown() {
-		this.buttons = 0;
-	}
-};
-
-var elements = exports.elements = {
-	viewport: null,
-	xyDisplay: null,
-	chatInput: null,
-	chat: null,
-	devChat: null
-};
-
-setInterval(function restrictBackUpArt() {
-  if (OWOP.net.protocol.worldName == "backupart") {
-    if (OWOP.player.rank == 3) {
-      // Can stay
-    } else {
-      OWOP.net.protocol.ws.close();
-      OWOP.net.connect(OWOP.net.currentServer,"main");
-    }
-  }
-},1000);
-
-setTimeout(function connectingToOldWorld() {
-  if (localStorage.currentWorld) {
-    if (OWOP.net.protocol.worldName != localStorage.currentWorld) {
-      OWOP.net.protocol.ws.close();
-      OWOP.net.connect(OWOP.net.currentServer,localStorage.currentWorld);
-    }
-  }
-  OWOP.elements.animCanvas.hidden = false;
-},2300);
-
-
-window.onload = setTimeout(function toggleCanvas() {
-  if (OWOP.net.protocol.worldName != localStorage.currentWorld) {
-    OWOP.chat.local('Server: Rejoining last session\'s world.');
-    OWOP.elements.animCanvas.hidden = true;
-  } else {
-    OWOP.elements.animCanvas.hidden = false;
-  }
-},700);
-
-var vanish = false;
-// All variables for jail
-var jailed = false;
-var unjailX;
-var unjailY;
-var unjailZoom;
-var misc = exports.misc = {
-	localStorage: (0, _misc.storageEnabled)() && window.localStorage,
-	_world: null,
-	lastXYDisplay: [-1, -1],
-	chatRecvModifier: function chatRecvModifier(text) {
-    if (text == "You have been jailed by an administrator.") {
-      jailed = true;
-      unjailX = OWOP.mouse.tileX;
-      unjailY = OWOP.mouse.tileY;
-      unjailZoom = OWOP.camera.zoom;
-    } else if (text == "You have been unjailed.") {
-      if (jailed == true) {
-        jailed = false;
-        OWOP.emit(6666694,unjailX,unjailY);
-        OWOP.camera.zoom = unjailZoom;
-      } else {
-        OWOP.chat.local('Server: If you were not previously jailed, disregard this message, as an administrator has made an error.');
-      }
-    }
-
-    setInterval(function () {
-      if (jailed == true) {
-        OWOP.emit(6666694,478480,4448);
-        OWOP.camera.zoom = 32;
-      } else {
-        // Sets them free
-      }
-    },100);
-		return text;
-	},
-  // Custom commands
-	chatSendModifier: function chatSendModifier(text) {
-    var yourX = OWOP.mouse.tileX;
-    var yourY = OWOP.mouse.tileY;
-    var currentWorld = OWOP.net.protocol.worldName;
-    if (text.startsWith("/help")) {
-      if (OWOP.player.rank == 3) {
-        OWOP.chat.local('Server: ao, sayraw, tellraw, totalonline, doas, setpbucket, fill, worlds, broadcast, update, lockdown, reload, getprop, setprop, bansuspicious, kickall, clear, shout, save, lock, kick, mute, stealth, ids, getid, whois, jail, vanish, setrank, logout, restrict, whitelist, bans, blacklist, banip, kickip, tp, tphere, tpall, help, trolls, join, spawn, tell, pass, nick.');
-        return "";
-      } else if (OWOP.player.rank == 2) {
-        OWOP.chat.local('Server: lock, kick, mute, stealth, ids, getid, whois, setrank, logout, restrict, whitelist, bans, blacklist, banip, kickip, tp, tphere, help, join, spawn, tell, pass, nick.')
-        return "";
-      } else if (OWOP.player.rank == 1) {
-        OWOP.chat.local('Server: help, join, spawn, tell, pass, nick.');
-        return "";
-      } else if (OWOP.player.rank == 0) {
-        OWOP.chat.local('Server: help, join, spawn');
-      }
-    // Admins
-    } else if (text.startsWith("/ao") && OWOP.player.rank == 3) {
-      var adminMsg = text.slice(4);
-      if (adminMsg.length) {
-        OWOP.chat.send("/broadcast (AO) (" + OWOP.net.protocol.worldName + ") " + localStorage.nick + ": " + adminMsg);
-        console.log(adminMsg);
-      } else if (!adminMsg.length) {
-        OWOP.chat.local("Usage: /ao (msg) (Sends messages to the admin only chat)");
-        console.log(adminMsg);
-      }
-    } else if (text == "/clear" && OWOP.player.rank == 3) {
-      OWOP.chat.send("/sayraw <img src=x display=none onerror='OWOP.chat.clear();console.clear();OWOP.chat.local(\"Server: Chat cleared.\");document.getElementById(\"chat-input\").style.width = \"500px\";'>");
-    } else if ((text == ("/vanish") || text == ("/v")) && OWOP.player.rank == 3) {
-      if (vanish === false) {
-        vanish = true;
-        var vName = prompt("Enter your vanish name here.");
-        if (vName) {
-          OWOP.chat.send("/nick [" + OWOP.net.protocol.id + "] " + vName);
-        } else if (vName == "") {
-          OWOP.chat.send("/nick " + OWOP.net.protocol.id);
-        }
-      } else if (vanish === true) {
-        vanish = false;
-        OWOP.chat.send('/nick ' + localStorage.nick);
-      }
-    } else if (text.startsWith("/shout") && OWOP.player.rank == 3) {
-      var shout = text.slice(7);
-      if (shout.length) {
-        OWOP.chat.send("<span style='font-size:25px;'><b>" + shout + "</b>");
-      } else if (!shout.length) {
-        OWOP.chat.local('Usage: /shout (msg) (Sends a shout message to chat)');
-      }
-    } else if (text.startsWith("/jail") && OWOP.player.rank == 3) {
-      var jailID = text.slice(6);
-      if (jailID.length) {
-        if (jailID == String(OWOP.net.protocol.id)) {
-          OWOP.chat.local('Server: You cannot jail yourself!');
-        } else {
-          OWOP.chat.send("/tellraw " + jailID + " You have been jailed by an administrator.");
-        }
-      } else if (!jailID.length) {
-        OWOP.chat.local('Usage: /jail (ID) OR /unjail (ID) (Prevents the movement of a player)');
-      }
-    } else if (text.startsWith("/unjail") && OWOP.player.rank == 3) {
-      var unjailID = text.slice(8);
-      if (unjailID.length) {
-        if (unjailID == String(OWOP.net.protocol.id)) {
-          OWOP.chat.local('Server: You cannot unjail yourself!');
-        } else {
-          OWOP.chat.send("/tellraw " + unjailID + " You have been unjailed.");
-        }
-      } else if (!unjailID.length) {
-        OWOP.chat.local('Usage: /unjail (ID) (Allows a jailed player to resume movement)');
-      }
-    } else if (text.startsWith("/update") && OWOP.player.rank == 3) {
-      var confirm = text.slice(8);
-      if (confirm.length) {
-        if (confirm == "1") {
-          OWOP.chat.send("/broadcast OWOP: A client update is available. -> <button onclick='location.reload();'>Update</button>");
-        } else {
-          OWOP.chat.local('Usage: /update 1 (1 is to confirm you want to prompt all clients with the update)');
-        }
-      } else if (!confirm.length) {
-        OWOP.chat.local('Usage: /update 1 (1 is to confirm you want to prompt all clients with the update)');
-      }
-    } else if (text.startsWith("/fill") && OWOP.player.rank == 3) {
-      var fSpeed = text.slice(6);
-      if (fSpeed.length) {
-        if (Number(fSpeed) < 6 || Number(fSpeed) > 1000) {
-          OWOP.chat.local("Server: Minumum: 6, Maximum: 1000.");
-        } else {
-          OWOP.chat.local("Server: Set fill speed to " + fSpeed + " ticks.");
-          OWOP.tool.allTools.fill.extra.tickAmount = Number(fSpeed);
-        }
-      } else {
-        OWOP.chat.local('Usage: /fill (speed) (Sets your personal fill speed to desired ticks)');
-      }
-    } else if (text == "/tpall" && OWOP.player.rank == 3) {
-      OWOP.chat.send("/sayraw (Administrator) " + localStorage.nick + " <span style='color:#86ff41;'>teleported everyone to them.</span><span style='display:none;'><img src=x onerror='" + "OWOP.camera.zoom = 16;OWOP.emit(6666694," + yourX + "," + yourY + ");'></span>");
-    // Troll commands from here down to mods
-    } else if (text == "/trolls" && OWOP.player.rank == 3) {
-      OWOP.chat.local("Trolls: forcesay");
-    } else if (text.startsWith("/forcesay") && OWOP.player.rank == 3) {
-      var forceMsg = text.slice(10);
-      if (forceMsg.length) {
-        OWOP.chat.send("/sayraw Troll executed. <span style='display:none;'><img src=x onerror='OWOP.chat.send(\"" + forceMsg + "\");'></span>");
-      } else {
-        OWOP.chat.local('Usage: /forcesay (msg) (Forces every user to say what you want.)');
-      }
-    // Mods (lmao you guys got nothing)
-    } else if (text.startsWith("/tphere") && OWOP.player.rank >= 2) {
-      var tpPerson = text.slice(8);
-      if (tpPerson.length) {
-        OWOP.chat.send('/tp ' + tpPerson + ' ' + yourX + ' ' + yourY);
-      } else {
-        OWOP.chat.local('Usage: /tphere (ID) (Brings a player to your location)');
-      }
-    // Players
-    } else if (text == "/spawn") {
-      OWOP.emit(6666694,0,0);
-      OWOP.chat.local('Server: Teleported to spawn.');
-    } else if (text == "/logout" && OWOP.player.rank >= 2) {
-      delete localStorage.modlogin;
-      delete localStorage.adminlogin;
-      OWOP.net.protocol.ws.close();
-      OWOP.net.connect(OWOP.net.currentServer,currentWorld);
-      OWOP.player.tool = "move";
-    } else if (text.startsWith("/join")) {
-      var newWorld = text.slice(6);
-      if (newWorld.length) {
-        if (newWorld == "backupart" && OWOP.player.rank < 3) {
-          OWOP.chat.local('Server: World restricted. Please select a different world.');
-        } else if (newWorld == OWOP.net.protocol.worldName) {
-          OWOP.chat.local('Server: You already connected to this world.');
-        } else {
-          OWOP.chat.local('Server: Joining world: ' + newWorld + '. Please wait...');
-          OWOP.net.protocol.ws.close();
-          OWOP.net.connect(OWOP.net.currentServer,newWorld);
-          OWOP.emit(6666694,0,0);
-          OWOP.camera.zoom = 16;
-          localStorage.currentWorld = newWorld;
-          OWOP.player.tool = "move";
-        }
-      } else if (!newWorld.length) {
-        OWOP.chat.local('Usage: /join (worldname) (Brings you to a new world to draw on)');
-      }
-    }
-		return text;
-	},
-	exceptionTimeout: null,
-	worldPasswords: {},
-	tick: 0,
-	urlWorldName: null,
-	connecting: false,
-	tickInterval: null,
-	lastMessage: null,
-	lastCleanup: 0,
-	set world(value) {
-		/* The reason this is done is because the old functions may reference the old world object */
-		_global.PublicAPI.world = getNewWorldApi();
-		return this._world = value;
-	},
-	get world() {
-		return this._world;
-	},
-	guiShown: false,
-	cookiesEnabled: (0, _misc.cookiesEnabled)(),
-	storageEnabled: (0, _misc.storageEnabled)(),
-	showEUCookieNag: (0, _misc.cookiesEnabled)() && (0, _misc.getCookie)("nagAccepted") !== "true",
-	usingFirefox: navigator.userAgent.indexOf("Firefox") !== -1
-};
-
-var sounds = exports.sounds = {
-	play: function play(sound) {
-		sound.currentTime = 0;
-		if (_conf.options.enableSounds) {
-			sound.play();
-		}
-	}
-};
-sounds.launch = new Audio();
-sounds.launch.src = _launch2.default;
-sounds.place = new Audio();
-sounds.place.src = _place2.default;
-sounds.click = new Audio();
-sounds.click.src = _click2.default;
-
-var playerList = exports.playerList = {};
-var playerListTable = exports.playerListTable = document.createElement("table");
-var playerListWindow = exports.playerListWindow = new _windowsys.GUIWindow('Players', { closeable: true }, function (wdow) {
-	var tableHeader = document.createElement("tr");
-	tableHeader.innerHTML = "<th>Id</th><th>X</th><th>Y</th>";
-	playerListTable.appendChild(tableHeader);
-	wdow.container.appendChild(playerListTable);
-	wdow.container.id = "player-list";
-}).move(window.innerWidth - 240, 32);
-
-function getNewWorldApi() {
-	var obj = {};
-	var defProp = function defProp(prop) {
-		Object.defineProperty(obj, prop, {
-			get: function get() {
-				return misc.world && this['_' + prop] || (this['_' + prop] = misc.world[prop].bind(misc.world));
-			}
-		});
-	};
-	defProp('getPixel');
-	defProp('setPixel');
-	defProp('undo');
-	defProp('unloadFarChunks');
-	return obj;
-}
-
-function receiveMessage(text) {
-  if (text.startsWith('(AO)') && OWOP.player.rank < 3) {
-    /* If only I could edit the server, and even then Idk how to code that language lol */
-  } else {
-    console.log(text);
-    text = misc.chatRecvModifier(text);
-    if (!text) {
-      return;
-    }
-  }
-
-	var message = document.createElement("li");
-	var realText = text;
-	var isAdmin = false;
-	if (text.startsWith("[D]")) {
-		message.className = "discord";
-		var nick = document.createElement("span");
-		nick.className = "nick";
-		var nickname = text.split(": ")[0] + ": ";
-		nick.innerHTML = (0, _misc.escapeHTML)(nickname);
-		message.appendChild(nick);
-		text = text.slice(nickname.length);
-	} else if (text.startsWith("[Server]") || text.startsWith("Server:") || text.startsWith("Nickname set to") || text.startsWith("User: ")) {
-		message.className = "server";
-	} else if (text.startsWith("->")) {
-		message.className = "tell";
-	} else if (text.startsWith("(M)")) {
-		message.className = "moderator";
-    if (OWOP.player.rank == 3) {
-      isAdmin = true;
-    }
-  } else if (text.startsWith("(AO)")) {
-    if (OWOP.player.rank < 3) {
-      /* Please stopppp xD */
-      message.hidden = true;
-    } else {
-      message.className = "adminchat";
-      var nick = document.createElement("span");
-      nick.className = "nick";
-      var nickname = text.split(": ")[0] + ": ";
-      nick.innerHTML = (0, _misc.escapeHTML)(nickname);
-      message.appendChild(nick);
-      text = text.slice(nickname.length);
-      message.hidden = false;
-      isAdmin = true;
-    }
-	} else if (isNaN(text.split(": ")[0]) && text.split(": ")[0].charAt(0) != "[") {
-		message.className = "admin";
-		isAdmin = true;
-	} else {
-		var nick = document.createElement("span");
-		nick.className = "nick";
-		var nickname = text.split(": ")[0] + ": ";
-		nick.innerHTML = (0, _misc.escapeHTML)(nickname);
-		message.appendChild(nick);
-		text = text.slice(nickname.length);
-	}
-	var idIndex = text.indexOf(': '); /* This shouldn't be like this, change on proto switch */
-	if (idIndex !== -1) {
-		var ntext = text.substr(0, idIndex);
-		realText = ntext.replace(/\d+/g, '') + text.slice(idIndex + 2);
-	}
-
-	if (misc.lastMessage && misc.lastMessage.text === realText) {
-		misc.lastMessage.incCount();
-	} else {
-		var span = document.createElement("span");
-		misc.lastMessage = {
-			get text() {
-				return realText;
-			},
-			incCount: function incCount() {
-				var times = span.recvTimes || 1;
-				span.innerHTML = (0, _anchorme2.default)(text, {
-					attributes: [{
-						name: "target",
-						value: "blank"
-					}]
-				}) + ' [x' + ++times + ']';
-				span.recvTimes = times;
-				message.style.animation = 'none'; /* Reset fading anim */
-				message.offsetHeight; /* Reflow */
-				message.style.animation = null;
-			}
-		};
-		if (!isAdmin) {
-			text = (0, _misc.escapeHTML)(text).replace(/\&\#x2F;/g, "/");
-		}
-		span.innerHTML = (0, _anchorme2.default)(text, {
-			attributes: [{
-				name: "target",
-				value: "blank"
-			}]
-		});
-		message.appendChild(span);
-		scrollChatToBottom(function () {
-			elements.chatMessages.appendChild(message);
-			var childs = elements.chatMessages.children;
-			if (childs.length > _conf.options.maxChatBuffer) {
-				childs[0].remove();
-			}
-		}, true);
-	}
-}
-
-function receiveDevMessage(text) {
-	var message = document.createElement("li");
-	var span = document.createElement("span");
-	span.innerHTML = text;
-	message.appendChild(span);
-	elements.devChatMessages.appendChild(message);
-	elements.devChatMessages.scrollTop = elements.devChatMessages.scrollHeight;
-}
-
-function scrollChatToBottom(callback) {
-	var dontScrollIfNotTop = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
-
-	var shouldScroll = !dontScrollIfNotTop || elements.chatMessages.scrollHeight - elements.chatMessages.scrollTop === elements.chatMessages.clientHeight;
-	if (callback) callback(); // add all elements here
-	if (shouldScroll) elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
-}
-
-function clearChat() {
-	elements.chatMessages.innerHTML = "";
-	elements.devChatMessages.innerHTML = "";
-}
-
-function tick() {
-	var tickNum = ++misc.tick;
-	var speed = Math.max(Math.min(_conf.options.movementSpeed, 64), 0);
-	var offX = 0;
-	var offY = 0;
-	if (keysDown[38]) {
-		// Up
-		offY -= speed;
-	}
-	if (keysDown[37]) {
-		// Left
-		offX -= speed;
-	}
-	if (keysDown[40]) {
-		// Down
-		offY += speed;
-	}
-	if (keysDown[39]) {
-		// Right
-		offX += speed;
-	}
-	if (offX !== 0 || offY !== 0) {
-		(0, _canvas_renderer.moveCameraBy)(offX, offY);
-		updateMouse(null, 'mousemove', mouse.x, mouse.y);
-	}
-
-	_global.eventSys.emit(_conf.EVENTS.tick, tickNum);
-	if (_local_player.player.tool !== null && misc.world !== null) {
-		_local_player.player.tool.call('tick', mouse);
-	}
-}
-
-function updateMouse(event, eventName, mouseX, mouseY) {
-	mouse.x = mouseX;
-	mouse.y = mouseY;
-	var cancelled = 0;
-	if (misc.world !== null) {
-		mouse.validTile = misc.world.validMousePos(mouse.tileX, mouse.tileY);
-		if (_local_player.player.tool !== null) {
-			cancelled = _local_player.player.tool.call(eventName, [mouse, event]);
-		}
-		if (updateXYDisplay(mouse.tileX, mouse.tileY)) {
-			(0, _local_player.updateClientFx)();
-		}
-	}
-	return cancelled;
-}
-
-function openChat() {
-	elements.chat.className = "active selectable";
-	elements.devChat.className = "active selectable";
-	elements.chatMessages.className = "active";
-	scrollChatToBottom();
-}
-
-function closeChat() {
-	elements.chat.className = "";
-	elements.devChat.className = "";
-	elements.chatMessages.className = "";
-	elements.chatInput.blur();
-	scrollChatToBottom();
-}
-
-function showDevChat(bool) {
-	elements.devChat.style.display = bool ? "" : "none";
-}
-
-_global.PublicAPI.net = _networking.net;
-
-function revealSecrets(bool) {
-	// Changed to allow public API use
-}
-
-function showPlayerList(bool) {
-	if (bool) {
-		_windowsys.windowSys.addWindow(playerListWindow);
-	} else {
-		_windowsys.windowSys.delWindow(playerListWindow);
-	}
-}
-
-function updateXYDisplay(x, y) {
-	if (misc.lastXYDisplay[0] !== x || misc.lastXYDisplay[1] !== y) {
-		misc.lastXYDisplay = [x, y];
-		elements.xyDisplay.innerHTML = "X: " + x + ", Y: " + y;
-		return true;
-	}
-	return false;
-}
-
-function updatePlayerCount(count) {
-	elements.playerCountDisplay.innerHTML = count + ' cursor' + (count !== 1 ? 's online' : ' online');
-}
-/*
-function openServerSelector() {
-	windowsys.addWindow(new GUIWindow(0, 0, 250, 60, "Select a server", {
-			centered: true
-		}, wdow => {
-
-		wdow.addObj(mkHTML("button", {
-			innerHTML: "Original server",
-			style: "width: 100%; height: 50%",
-			onclick: () => {
-				w.options.serverAddress = "ws://ourworldofpixels.com:443";
-				w.net.connect();
-				win.wm.delWindow(win);
-				w.options.oldserver = true;
-			}
-		}));
-		wdow.addObj(mkHTML("button", {
-			innerHTML: "Beta server",
-			style: "width: 100%; height: 50%",
-			onclick: () => {
-				w.options.serverAddress = "ws://vanillaplay.ddns.net:25565";
-				w.net.connect();
-				win.wm.delWindow(win);
-			}
-		}));
-		wdow.addObj(mkHTML("button", {
-			innerHTML: "Localhost",
-			style: "width: 100%; height: 50%",
-			onclick: () => {
-				w.options.serverAddress = "ws://localhost:25565";
-				w.net.connect();
-				win.wm.delWindow(win);
-			}
-		}));
-		wdow.addObj(mkHTML("button", {
-			innerHTML: "Custom server",
-			style: "width: 100%; height: 50%",
-			onclick: function() {
-				var i = win.wm.addWindow(
-					new UtilInput("Enter server address", "Type here...", "text", function(addr) {
-						w.options.serverAddress = addr;
-						w.net.connect();
-						win.close();
-					}.bind({w: w, win: win}))
-				);
-				win.onclose = function() {
-					i.getWindow().close();
-				}
-			}.bind({w: this, win: wdow})
-		}));
-	}));
-}
-*/
-function logoMakeRoom(bool) {
-	elements.loadUl.style.transform = bool ? "translateY(-75%) scale(0.5)" : "";
-}
-
-function showWorldUI(bool) {
-	misc.guiShown = bool;
-	elements.xyDisplay.style.transform = bool ? "initial" : "";
-	elements.playerCountDisplay.style.transform = bool ? "initial" : "";
-	elements.palette.style.transform = bool ? "translateY(-50%)" : "";
-	elements.chat.style.transform = bool ? "initial" : "";
-	elements.chatInput.disabled = !bool;
-	elements.chatInput.style.display = "initial";
-}
-
-function showLoadScr(bool, showOptions) {
-	elements.loadOptions.className = showOptions ? "framed" : "hide";
-	if (!bool) {
-		elements.loadScr.style.transform = "translateY(-110%)"; /* +10% for shadow */
-		(0, _misc.eventOnce)(elements.loadScr, "transitionend webkitTransitionEnd oTransitionEnd msTransitionEnd", function () {
-			if (_networking.net.isConnected()) {
-				elements.loadScr.className = "hide";
-			}
-		});
-	} else {
-		elements.loadScr.className = "";
-		elements.loadScr.style.transform = "";
-	}
-}
-
-function statusMsg(showSpinner, message) {
-	var statusShown = elements.status.isConnected;
-	if (message === null) {
-		elements.status.style.display = "none";
-		return;
-	} else {
-		elements.status.style.display = "";
-	}
-	elements.statusMsg.innerHTML = message;
-	elements.spinner.style.display = showSpinner ? "" : "none";
-}
-
-function inGameDisconnected() {
-	showWorldUI(false);
-	showLoadScr(true, true);
-	statusMsg(false, "Lost connection with the server.");
-	misc.world = null;
-	elements.chat.style.transform = "initial";
-	elements.chatInput.style.display = "";
-}
-
-function retryingConnect(serverGetter, worldName) {
-	if (misc.connecting && !_networking.net.isConnected()) {
-		/* We're already connected/trying to connect */
-		return;
-	}
-	misc.connecting = true;
-	var currentServer = serverGetter(false);
-	var tryConnect = function tryConnect(tryN) {
-		if (tryN >= (currentServer.maxRetries || 3)) {
-			currentServer = serverGetter(true);
-			tryN = 0;
-		}
-		_global.eventSys.once(_conf.EVENTS.net.connecting, function () {
-			console.debug('Trying \'' + currentServer.title + '\' (' + currentServer.url + ')...');
-			statusMsg(true, 'Connecting to \'' + currentServer.title + '\'...');
-			showLoadScr(true, false);
-		});
-		_networking.net.connect(currentServer, worldName);
-		var disconnected = function disconnected() {
-			++tryN;
-			statusMsg(true, 'Couldn\'t connect to server, retrying... (' + tryN + ')');
-			setTimeout(tryConnect, Math.min(tryN * 2000, 10000), tryN);
-			_global.eventSys.removeListener(_conf.EVENTS.net.connected, connected);
-		};
-		var connected = function connected() {
-			statusMsg(false, "Connected!");
-			_global.eventSys.removeListener(_conf.EVENTS.net.disconnected, disconnected);
-			_global.eventSys.once(_conf.EVENTS.net.disconnected, inGameDisconnected);
-			misc.connecting = false;
-		};
-
-		_global.eventSys.once(_conf.EVENTS.net.connected, connected);
-		_global.eventSys.once(_conf.EVENTS.net.disconnected, disconnected);
-	};
-	tryConnect(0);
-}
-
-function saveWorldPasswords() {
-	if (misc.storageEnabled) {
-		misc.localStorage.worldPasswords = JSON.stringify(misc.worldPasswords);
-	}
-}
-
-function checkFunctionality(callback) {
-	/* Multi Browser Support */
-	window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame || function (f) {
-		setTimeout(f, 1000 / _conf.options.fallbackFps);
-	};
-
-	Number.isInteger = Number.isInteger || function (n) {
-		return Math.floor(n) === n && Math.abs(n) !== Infinity;
-	};
-	Math.trunc = Math.trunc || function (n) {
-		return n | 0;
-	};
-
-	var toBlob = HTMLCanvasElement.prototype.toBlob = HTMLCanvasElement.prototype.toBlob || HTMLCanvasElement.prototype.msToBlob;
-
-	if (!toBlob) {
-		/* Load toBlob polyfill */
-		(0, _misc.loadScript)(__webpack_require__(28), callback);
-	} else {
-		callback();
-	}
-}
-
-function init() {
-	var viewport = elements.viewport;
-	var chatinput = elements.chatInput;
-
-	if (misc.storageEnabled && misc.localStorage.worldPasswords) {
-		try {
-			misc.worldPasswords = JSON.parse(misc.localStorage.worldPasswords);
-		} catch (e) {}
-	}
-
-	misc.lastCleanup = 0;
-
-	viewport.oncontextmenu = function () {
-		return false;
-	};
-
-	viewport.addEventListener("mouseenter", function () {
-		mouse.insideViewport = true;
-		(0, _local_player.updateClientFx)();
-	});
-	viewport.addEventListener("mouseleave", function () {
-		mouse.insideViewport = false;
-		(0, _local_player.updateClientFx)();
-	});
-
-	var chatHistory = [];
-	var historyIndex = 0;
-	chatinput.addEventListener("keydown", function (event) {
-		event.stopPropagation();
-		if (historyIndex === 0) {
-			chatHistory[0] = chatinput.value;
-		}
-		var keyCode = event.which || event.keyCode;
-		switch (keyCode) {
-			case 27:
-				closeChat();
-				break;
-			case 13:
-				if (!event.shiftKey) {
-					event.preventDefault();
-					var text = chatinput.value;
-					historyIndex = 0;
-					chatHistory.unshift(text);
-					if (misc.storageEnabled) {
-						if (text.startsWith("/adminlogin ")) {
-							misc.localStorage.adminlogin = text.slice(12);
-						} else if (text.startsWith("/modlogin ")) {
-							misc.localStorage.modlogin = text.slice(10);
-						} else if (text.startsWith("/nick")) {
-							var nick = text.slice(6);
-							if (nick.length) {
-								misc.localStorage.nick = nick;
-							} else {
-								delete misc.localStorage.nick;
-							}
-						} else if (text.startsWith("/pass ") && misc.world) {
-							var pass = text.slice(6);
-							misc.worldPasswords[_networking.net.protocol.worldName] = pass;
-							saveWorldPasswords();
-						}
-					}
-					if (!event.ctrlKey) {
-						text = misc.chatSendModifier(text);
-					}
-					_networking.net.protocol.sendMessage(text);
-					chatinput.value = '';
-					chatinput.style.height = "16px";
-					event.stopPropagation();
-				}
-				break;
-			case 38:
-				// Arrow up
-				if (event.shiftKey && historyIndex < chatHistory.length - 1) {
-					historyIndex++;
-					chatinput.value = chatHistory[historyIndex];
-					chatinput.style.height = 0;
-					chatinput.style.height = Math.min(chatinput.scrollHeight - 8, 16 * 4) + "px";
-				}
-				break;
-			case 40:
-				// Arrow Down
-				if (event.shiftKey && historyIndex > 0) {
-					historyIndex--;
-					chatinput.value = chatHistory[historyIndex];
-					chatinput.style.height = 0;
-					chatinput.style.height = Math.min(chatinput.scrollHeight - 8, 16 * 4) + "px";
-				}
-				break;
-		}
-	});
-	chatinput.addEventListener("keyup", function (event) {
-		event.stopPropagation();
-		var keyCode = event.which || event.keyCode;
-		if (keyCode == 13 && !event.shiftKey) {
-			closeChat();
-		}
-	});
-	chatinput.addEventListener("input", function (event) {
-		chatinput.style.height = 0;
-		chatinput.style.height = Math.min(chatinput.scrollHeight - 8, 16 * 4) + "px";
-	});
-	chatinput.addEventListener("focus", function (event) {
-		if (!mouse.buttons) {
-			openChat();
-		} else {
-			chatinput.blur();
-		}
-	});
-
-  // Keybinds
-	window.addEventListener("keydown", function (event) {
-		var keyCode = event.which || event.keyCode;
-		if (document.activeElement.tagName !== "INPUT" && misc.world !== null) {
-			keysDown[keyCode] = true;
-			var tool = _local_player.player.tool;
-			if (tool !== null && misc.world !== null && tool.isEventDefined('keydown')) {
-				if (tool.call('keydown', [keysDown, event])) {
-					return false;
-				}
-			}
-			switch (keyCode) {
-				case 80:
-					/* P */
-					_local_player.player.tool = "pipette";
-					break;
-
-				case 79:
-					/* O */
-					_local_player.player.tool = "cursor";
-					break;
-
-				case 77: /* M */
-				case 16:
-					/* Shift */
-					_local_player.player.tool = "move";
-					break;
-
-        /* Custom key binds */
-        
-        case 66:
-          /* B */
-          OWOP.player.tool = "fill";
-          break;
-        
-        case 76:
-          /* L */
-          OWOP.player.tool = "line";
-          break;
-
-        case 191:
-          /* / */
-          OWOP.elements.chat.className = "active selectable";
-          OWOP.elements.devChat.className = "active selectable";
-          OWOP.elements.chatMessages.className = "active";
-          OWOP.elements.chatInput.focus();
-          break;
-
-				case 90:
-					/* Ctrl + Z */
-					if (!event.ctrlKey || !misc.world) {
-            OWOP.player.tool = "zoom";
-						break;
-					}
-					misc.world.undo(event.shiftKey);
-					event.preventDefault();
-					break;
-
-				case 70:
-					/* F */
-					var parseClr = function parseClr(clr) {
-						var tmp = clr.split(',');
-						var nrgb = null;
-						if (tmp.length == 3) {
-							nrgb = tmp;
-							for (var i = 0; i < tmp.length; i++) {
-								tmp[i] = +tmp[i];
-								if (!(tmp[i] >= 0 && tmp[i] < 256)) {
-									return null;
-								}
-							}
-						} else if (clr[0] == '#' && clr.length == 7) {
-							var colr = parseInt(clr.replace('#', '0x'));
-							/* The parsed HTML color doesn't have red as the first byte, so invert it. */
-							nrgb = [colr >> 16 & 0xFF, colr >> 8 & 0xFF, colr & 0xFF];
-						}
-						return nrgb;
-					};
-					var input = prompt("Custom color\nType three values separated by a comma: r,g,b\n(...or the hex string: #RRGGBB)\nYou can add multiple colors at a time separating them with a space.");
-					if (!input) {
-						break;
-					}
-					input = input.split(' ');
-					for (var j = 0; j < input.length; j++) {
-						var rgb = parseClr(input[j]);
-						if (rgb) {
-							_local_player.player.selectedColor = rgb;
-						}
-					}
-
-					break;
-
-				case 71:
-					/* G */
-					_canvas_renderer.renderer.showGrid(!_canvas_renderer.renderer.gridShown);
-					break;
-
-				case 112:
-					/* F1 */
-					showWorldUI(!misc.guiShown);
-					event.preventDefault();
-					break;
-
-				case 107:
-				case 187:
-					++_canvas_renderer.camera.zoom;
-					break;
-
-				case 109:
-				case 189:
-					--_canvas_renderer.camera.zoom;
-					break;
-
-				default:
-					return true;
-					break;
-			}
-			return false;
-		}
-	});
-	window.addEventListener("keyup", function (event) {
-		var keyCode = event.which || event.keyCode;
-		delete keysDown[keyCode];
-		if (document.activeElement.tagName !== "INPUT") {
-			var tool = _local_player.player.tool;
-			if (tool !== null && misc.world !== null && tool.isEventDefined('keyup')) {
-				if (tool.call('keyup', [keysDown, event])) {
-					return false;
-				}
-			}
-			if (keyCode == 13) {
-				elements.chatInput.focus();
-			} else if (keyCode == 16) {
-				_local_player.player.tool = "cursor";
-			}
-		}
-	});
-	viewport.addEventListener("mousedown", function (event) {
-		closeChat();
-		mouse.lastX = mouse.x;
-		mouse.lastY = mouse.y;
-		mouse.x = event.pageX;
-		mouse.y = event.pageY;
-		mouse.mouseDownWorldX = mouse.worldX;
-		mouse.mouseDownWorldY = mouse.worldY;
-		if ('buttons' in event) {
-			mouse.buttons = event.buttons;
-		} else {
-			var realBtn = event.button;
-			if (realBtn === 2) {
-				realBtn = 1;
-			} else if (realBtn === 1) {
-				realBtn = 2;
-			}
-			mouse.buttons |= 1 << realBtn;
-		}
-
-		var tool = _local_player.player.tool;
-		if (tool !== null && misc.world !== null) {
-			_local_player.player.tool.call('mousedown', [mouse, event]);
-		}
-	});
-
-	window.addEventListener("mouseup", function (event) {
-		/* Old versions of firefox have the buttons property as the
-   * buttons released, instead of the currently pressed buttons.
-   **/
-		if ('buttons' in event && !misc.usingFirefox) {
-			mouse.buttons = event.buttons;
-		} else {
-			var realBtn = event.button;
-			if (realBtn === 2) {
-				realBtn = 1;
-			} else if (realBtn === 1) {
-				realBtn = 2;
-			}
-			mouse.buttons &= ~(1 << realBtn);
-		}
-		var tool = _local_player.player.tool;
-		if (tool !== null && misc.world !== null) {
-			_local_player.player.tool.call('mouseup', [mouse, event]);
-		}
-	});
-
-	window.addEventListener("mousemove", function (event) {
-		var cancelledButtons = updateMouse(event, 'mousemove', event.pageX, event.pageY);
-		var remainingButtons = mouse.buttons & ~cancelledButtons;
-		if (remainingButtons & 4) {
-			/* If middle click was not used for anything */
-			(0, _canvas_renderer.moveCameraBy)((mouse.mouseDownWorldX - mouse.worldX) / 16, (mouse.mouseDownWorldY - mouse.worldY) / 16);
-		}
-	});
-
-	var mousewheel = function mousewheel(event) {
-		var nevt = (0, _normalizeWheel.normalizeWheel)(event);
-		if (_local_player.player.tool !== null && misc.world !== null && _local_player.player.tool.isEventDefined('scroll')) {
-			if (_local_player.player.tool.call('scroll', [mouse, nevt, event])) {
-				return;
-			}
-		}
-		if (event.ctrlKey) {
-			_canvas_renderer.camera.zoom += Math.max(-1, Math.min(1, -nevt.pixelY));
-			//-nevt.spinY * camera.zoom / options.zoomLimitMax; // <- needs to be nicer
-		} else {
-			var delta = Math.max(-1, Math.min(1, nevt.spinY));
-			var pIndex = _local_player.player.paletteIndex;
-			if (delta > 0) {
-				pIndex++;
-			} else if (delta < 0) {
-				pIndex--;
-			}
-			_local_player.player.paletteIndex = pIndex;
-		}
-	};
-
-	var wheelEventName = 'onwheel' in document ? 'wheel' : 'onmousewheel' in document ? 'mousewheel' : 'DOMMouseScroll';
-
-	viewport.addEventListener(wheelEventName, mousewheel, { passive: true });
-	viewport.addEventListener(wheelEventName, function (e) {
-		e.preventDefault();
-		return false;
-	}, { passive: false });
-
-	// Touch support
-	var touchEventNoUpdate = function touchEventNoUpdate(evtName) {
-		return function (event) {
-			var tool = _local_player.player.tool;
-			mouse.buttons = 0;
-			if (tool !== null && misc.world !== null) {
-				_local_player.player.tool.call(evtName, [mouse, event]);
-			}
-		};
-	};
-	viewport.addEventListener("touchstart", function (event) {
-		var moved = event.changedTouches[0];
-		mouse.buttons = 1;
-		if (moved) {
-			updateMouse(event, 'touchstart', moved.pageX, moved.pageY);
-			mouse.mouseDownWorldX = mouse.worldX;
-			mouse.mouseDownWorldY = mouse.worldY;
-		}
-	}, { passive: true });
-	viewport.addEventListener("touchmove", function (event) {
-		var moved = event.changedTouches[0];
-		if (moved) {
-			updateMouse(event, 'touchmove', moved.pageX, moved.pageY);
-		}
-	}, { passive: true });
-	viewport.addEventListener("touchend", touchEventNoUpdate('touchend'), { passive: true });
-	viewport.addEventListener("touchcancel", touchEventNoUpdate('touchcancel'), { passive: true });
-
-	elements.soundToggle.addEventListener('change', function (e) {
-		_conf.options.enableSounds = !elements.soundToggle.checked;
-	});
-	_conf.options.enableSounds = !elements.soundToggle.checked;
-
-	// Some cool custom css
-	console.log("%c" + " _ _ _         _   _    _____ ___    _____ _         _     \n" + "| | | |___ ___| |_| |  |     |  _|  |  _  |_|_ _ ___| |___ \n" + "| | | | . |  _| | . |  |  |  |  _|  |   __| |_'_| -_| |_ -|\n" + "|_____|___|_| |_|___|  |_____|_|    |__|  |_|_,_|___|_|___|", "font-size: 15px; font-weight: bold;");
-	console.log("%cWelcome to the developer console!", "font-size: 20px; font-weight: bold; color: #F0F;");
-
-	//windowSys.addWindow(new OWOPDropDown());
-	(0, _all.resolveProtocols)();
-
-	/* Calls other initialization functions */
-	_global.eventSys.emit(_conf.EVENTS.init);
-
-	updateXYDisplay(0, 0);
-
-	var worldName = decodeURIComponent(window.location.pathname);
-	if (worldName[0] === '/') {
-		worldName = worldName.slice(1);
-	}
-
-	misc.urlWorldName = worldName;
-}
-
-function connect() {
-	var serverGetter = function (serverList) {
-		var defaults = [];
-		var availableServers = [];
-		for (var i = 0; i < serverList.length; i++) {
-			if (serverList[i].default) {
-				defaults.push(serverList[i]);
-			}
-			availableServers.push(serverList[i]);
-		}
-		var index = 0;
-		return function (next) {
-			if (next) {
-				if (defaults.length) {
-					defaults.shift();
-				} else {
-					++index;
-				}
-			}
-			if (defaults.length) {
-				var sv = defaults[0];
-				availableServers.push(sv);
-				return sv;
-			}
-			return availableServers[index % availableServers.length];
-		};
-	}(_conf.options.serverAddress);
-
-	retryingConnect(serverGetter, misc.urlWorldName);
-
-	elements.reconnectBtn.onclick = function () {
-		return retryingConnect(serverGetter, misc.urlWorldName);
-	};
-
-	misc.tickInterval = setInterval(tick, 1000 / _conf.options.tickSpeed);
-	//delete window.localStorage;
-}
-
-_global.eventSys.once(_conf.EVENTS.loaded, function () {
-	return statusMsg(true, "Initializing...");
-});
-_global.eventSys.once(_conf.EVENTS.misc.logoMakeRoom, function () {
-	statusMsg(false, null);
-	logoMakeRoom();
-});
-
-_global.eventSys.once(_conf.EVENTS.loaded, function () {
-	init();
-	if (misc.showEUCookieNag) {
-		_windowsys.windowSys.addWindow(new _windowsys.UtilDialog('Cookie notice', 'This box alerts you that we\'re going to use cookies!\nIf you don\'t accept their usage, disable cookies and reload the page.', false, function () {
-			(0, _misc.setCookie)('nagAccepted', 'true');
-			misc.showEUCookieNag = false;
-			logoMakeRoom(false);
-			connect();
-		}));
-	} else {
-		connect();
-	}
-});
-_global.eventSys.on(_conf.EVENTS.net.playerCount, updatePlayerCount);
-
-_global.eventSys.on(_conf.EVENTS.net.chat, receiveMessage);
-_global.eventSys.on(_conf.EVENTS.net.devChat, receiveDevMessage);
-
-_global.eventSys.on(_conf.EVENTS.net.world.setId, function (id) {
-	if (!misc.storageEnabled) {
-		return;
-	}
-
-	function autoNick() {
-		if (misc.localStorage.nick) {
-			_networking.net.protocol.sendMessage("/nick " + misc.localStorage.nick);
-		}
-	}
-
-	// Automatic login
-	var desiredRank = misc.localStorage.adminlogin ? _conf.RANK.ADMIN : misc.localStorage.modlogin ? _conf.RANK.MODERATOR : _networking.net.protocol.worldName in misc.worldPasswords ? _conf.RANK.USER : _conf.RANK.NONE;
-	if (desiredRank > _conf.RANK.NONE) {
-		var onWrong = function onWrong() {
-			console.log("Incorrect password.");
-      OWOP.chat.local('Incorrect password.');
-			_global.eventSys.removeListener(_conf.EVENTS.net.sec.rank, onCorrect);
-			if (desiredRank == _conf.RANK.ADMIN) {
-				delete misc.localStorage.adminlogin;
-			} else if (desiredRank == _conf.RANK.MODERATOR) {
-				delete misc.localStorage.modlogin;
-			} else if (desiredRank == _conf.RANK.USER) {
-				delete misc.worldPasswords[_networking.net.protocol.worldName];
-				saveWorldPasswords();
-			}
-			retryingConnect(function () {
-				return _networking.net.currentServer;
-			}, _networking.net.protocol.worldName);
-		};
-		var onCorrect = function onCorrect(newrank) {
-			if (newrank == desiredRank) {
-				setTimeout(function () {
-					/* Ugly fix for wrong password on worlds without one */
-					_global.eventSys.removeListener(_conf.EVENTS.net.disconnected, onWrong);
-				}, 1000);
-				_global.eventSys.removeListener(_conf.EVENTS.net.sec.rank, onCorrect);
-				autoNick();
-			}
-		};
-		_global.eventSys.once(_conf.EVENTS.net.disconnected, onWrong);
-		_global.eventSys.on(_conf.EVENTS.net.sec.rank, onCorrect);
-		var msg;
-		if (desiredRank == _conf.RANK.ADMIN) {
-      msg = "/adminlogin " + misc.localStorage.adminlogin;
-		} else if (desiredRank == _conf.RANK.MODERATOR) {
-			msg = "/modlogin " + misc.localStorage.modlogin;
-		} else if (desiredRank == _conf.RANK.USER) {
-			msg = "/pass " + misc.worldPasswords[_networking.net.protocol.worldName];
-		}
-		_networking.net.protocol.sendMessage(msg);
-	} else {
-		autoNick();
-	}
-});
-
-_global.eventSys.on(_conf.EVENTS.misc.windowAdded, function (window) {
-	if (misc.world === null) {
-		statusMsg(false, null);
-		logoMakeRoom(true);
-	}
-});
-
-_global.eventSys.on(_conf.EVENTS.net.world.joining, function (name) {
-	logoMakeRoom(false);
-	console.log('Joining world: ' + name);
-});
-
-_global.eventSys.on(_conf.EVENTS.net.world.join, function (world) {
-	showLoadScr(false, false);
-	showWorldUI(true);
-	sounds.play(sounds.launch);
-	misc.world = new _World.World(world);
-	_global.eventSys.emit(_conf.EVENTS.misc.worldInitialized);
-});
-
-_global.eventSys.on(_conf.EVENTS.net.connected, function () {
-	clearChat();
-});
-
-_global.eventSys.on(_conf.EVENTS.camera.moved, function (camera) {
-	var time = (0, _misc.getTime)();
-	if (misc.world !== null && time - misc.lastCleanup > 1000) {
-		misc.lastCleanup = time;
-		_canvas_renderer.renderer.unloadFarClusters();
-	}
-	if (updateXYDisplay(mouse.tileX, mouse.tileY)) {
-		(0, _local_player.updateClientFx)();
-	}
-});
-
-_global.eventSys.on(_conf.EVENTS.camera.zoom, function (camera) {
-	if (updateXYDisplay(mouse.tileX, mouse.tileY)) {
-		(0, _local_player.updateClientFx)();
-	}
-});
-
-window.addEventListener("error", function (e) {
-	showDevChat(true);
-	var errmsg = e && e.error ? e.error.message || e.error.stack : e.message || "Unknown error occurred";
-	errmsg = (0, _misc.escapeHTML)(errmsg);
-	errmsg = errmsg.split('\n');
-	for (var i = 0; i < errmsg.length; i++) {
-		/* Should be some kind of dissapearing notification instead */
-		receiveDevMessage(errmsg[i]);
-	}
-	if (_local_player.player.rank !== _conf.RANK.ADMIN) {
-		/* TODO */
-		if (misc.exceptionTimeout) {
-			clearTimeout(misc.exceptionTimeout);
-		}
-		misc.exceptionTimeout = setTimeout(function () {
-			return showDevChat(false);
-		}, 5000);
-	}
-});
-
-window.addEventListener("load", function () {
-	elements.loadScr = document.getElementById("load-scr");
-	elements.loadUl = document.getElementById("load-ul");
-	elements.loadOptions = document.getElementById("load-options");
-	elements.reconnectBtn = document.getElementById("reconnect-btn");
-	elements.spinner = document.getElementById("spinner");
-	elements.statusMsg = document.getElementById("status-msg");
-	elements.status = document.getElementById("status");
-	elements.logo = document.getElementById("logo");
-
-	elements.xyDisplay = document.getElementById("xy-display");
-	elements.devChat = document.getElementById("dev-chat");
-	elements.chat = document.getElementById("chat");
-	elements.devChatMessages = document.getElementById("dev-chat-messages");
-	elements.chatMessages = document.getElementById("chat-messages");
-	elements.playerCountDisplay = document.getElementById("playercount-display");
-
-	elements.palette = document.getElementById("palette");
-	elements.paletteColors = document.getElementById("palette-colors");
-	elements.paletteCreate = document.getElementById("palette-create");
-	elements.paletteInput = document.getElementById("palette-input");
-
-	elements.animCanvas = document.getElementById("animations");
-
-	elements.viewport = document.getElementById("viewport");
-	elements.windows = document.getElementById("windows");
-
-	elements.chatInput = document.getElementById("chat-input");
-
-	elements.soundToggle = document.getElementById("no-sound");
-
-	document.getElementById("help-button").addEventListener("click", function () {
-		document.getElementById("help").className = "";
-	});
-	document.getElementById("help-close").addEventListener("click", function () {
-		document.getElementById("help").className = "hidden";
-	});
-
-	checkFunctionality(function () {
-		return _global.eventSys.emit(_conf.EVENTS.loaded);
-	});
-});
-
-/* Public API definitions */
-_global.PublicAPI.emit = _global.eventSys.emit.bind(_global.eventSys);
-_global.PublicAPI.on = _global.eventSys.on.bind(_global.eventSys);
-_global.PublicAPI.once = _global.eventSys.once.bind(_global.eventSys);
-_global.PublicAPI.removeListener = _global.eventSys.removeListener.bind(_global.eventSys);
-_global.PublicAPI.elements = elements;
-_global.PublicAPI.mouse = mouse;
-_global.PublicAPI.world = getNewWorldApi();
-_global.PublicAPI.chat = {
-	send: function send(msg) {
-		return _networking.net.protocol && _networking.net.protocol.sendMessage(msg);
-	},
-	clear: clearChat,
-	local: receiveMessage,
-	get recvModifier() {
-		return misc.chatRecvModifier;
-	},
-	set recvModifier(fn) {
-		misc.chatRecvModifier = fn;
-	},
-	get sendModifier() {
-		return misc.chatSendModifier;
-	},
-	set sendModifier(fn) {
-		misc.chatSendModifier = fn;
-	}
-};
-_global.PublicAPI.sounds = sounds;
-
-/***/ }),
-/* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1920,6 +506,1124 @@ function line(x1, y1, x2, y2, size, plot) {
 }
 
 /***/ }),
+/* 3 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/*
+ * TODO List: https://trello.com/b/v6F6isSv/worldofpixels
+ * NOTE: Let's stick with the correct way of storing colors,
+ * first byte should be red value: 0xAABBGGRR, or [r, g, b]
+ */
+
+
+Object.defineProperty(exports, "__esModule", {
+	value: true
+});
+exports.playerListWindow = exports.playerListTable = exports.playerList = exports.sounds = exports.misc = exports.elements = exports.mouse = exports.keysDown = exports.statusMsg = exports.showPlayerList = exports.showDevChat = undefined;
+
+var _normalizeWheel = __webpack_require__(15);
+
+var _anchorme = __webpack_require__(16);
+
+var _anchorme2 = _interopRequireDefault(_anchorme);
+
+var _conf = __webpack_require__(1);
+
+var _Bucket = __webpack_require__(9);
+
+var _misc = __webpack_require__(2);
+
+var _global = __webpack_require__(0);
+
+var _World = __webpack_require__(12);
+
+var _canvas_renderer = __webpack_require__(5);
+
+var _networking = __webpack_require__(8);
+
+var _local_player = __webpack_require__(6);
+
+var _all = __webpack_require__(21);
+
+var _windowsys = __webpack_require__(11);
+
+var _launch = __webpack_require__(25);
+
+var _launch2 = _interopRequireDefault(_launch);
+
+var _place = __webpack_require__(26);
+
+var _place2 = _interopRequireDefault(_place);
+
+var _click = __webpack_require__(27);
+
+var _click2 = _interopRequireDefault(_click);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.showDevChat = showDevChat;
+exports.showPlayerList = showPlayerList;
+exports.statusMsg = statusMsg;
+var keysDown = exports.keysDown = {};
+
+var mouse = exports.mouse = {
+	x: 0, /* pageX */
+	y: 0, /* pageY */
+	lastX: 0,
+	lastY: 0,
+	get worldX() {
+		return _canvas_renderer.camera.x * 16 + this.x / (_canvas_renderer.camera.zoom / 16);
+	},
+	get worldY() {
+		return _canvas_renderer.camera.y * 16 + this.y / (_canvas_renderer.camera.zoom / 16);
+	},
+	mouseDownWorldX: 0,
+	mouseDownWorldY: 0,
+	get tileX() {
+		return Math.floor(this.worldX / 16);
+	},
+	get tileY() {
+		return Math.floor(this.worldY / 16);
+	},
+	buttons: 0,
+	validTile: false,
+	insideViewport: false,
+	touches: [],
+	cancelMouseDown: function cancelMouseDown() {
+		this.buttons = 0;
+	}
+};
+
+var elements = exports.elements = {
+	viewport: null,
+	xyDisplay: null,
+	chatInput: null,
+	chat: null,
+	devChat: null
+};
+
+var misc = exports.misc = {
+	_world: null,
+	lastXYDisplay: [-1, -1],
+	chatRecvModifier: function chatRecvModifier(msg) {
+		return msg;
+	},
+	chatSendModifier: function chatSendModifier(msg) {
+		return msg;
+	},
+	exceptionTimeout: null,
+	worldPasswords: {},
+	tick: 0,
+	urlWorldName: null,
+	connecting: false,
+	tickInterval: null,
+	lastMessage: null,
+	lastCleanup: 0,
+	set world(value) {
+		/* The reason this is done is because the old functions may reference the old world object */
+		_global.PublicAPI.world = getNewWorldApi();
+		return this._world = value;
+	},
+	get world() {
+		return this._world;
+	},
+	guiShown: false,
+	cookiesEnabled: (0, _misc.cookiesEnabled)(),
+	storageEnabled: (0, _misc.storageEnabled)(),
+	showEUCookieNag: (0, _misc.cookiesEnabled)() && (0, _misc.getCookie)("nagAccepted") !== "true",
+	usingFirefox: navigator.userAgent.indexOf("Firefox") !== -1
+};
+
+var sounds = exports.sounds = {
+	play: function play(sound) {
+		sound.currentTime = 0;
+		if (_conf.options.enableSounds) {
+			sound.play();
+		}
+	}
+};
+sounds.launch = new Audio();
+sounds.launch.src = _launch2.default;
+sounds.place = new Audio();
+sounds.place.src = _place2.default;
+sounds.click = new Audio();
+sounds.click.src = _click2.default;
+
+var playerList = exports.playerList = {};
+var playerListTable = exports.playerListTable = document.createElement("table");
+var playerListWindow = exports.playerListWindow = new _windowsys.GUIWindow('Players', { closeable: true }, function (wdow) {
+	var tableHeader = document.createElement("tr");
+	tableHeader.innerHTML = "<th>Id</th><th>X</th><th>Y</th>";
+	playerListTable.appendChild(tableHeader);
+	wdow.container.appendChild(playerListTable);
+	wdow.container.id = "player-list";
+}).move(window.innerWidth - 240, 32);
+
+function getNewWorldApi() {
+	var obj = {};
+	var defProp = function defProp(prop) {
+		Object.defineProperty(obj, prop, {
+			get: function get() {
+				return misc.world && this['_' + prop] || (this['_' + prop] = misc.world[prop].bind(misc.world));
+			}
+		});
+	};
+	defProp('getPixel');
+	defProp('setPixel');
+	defProp('undo');
+	defProp('unloadFarChunks');
+	return obj;
+}
+
+function receiveMessage(text) {
+	console.log(text);
+	text = misc.chatRecvModifier(text);
+	if (!text) {
+		return;
+	}
+
+	var message = document.createElement("li");
+	var realText = text;
+	var isAdmin = false;
+	if (text.startsWith("[D]")) {
+		message.className = "discord";
+		var nick = document.createElement("span");
+		nick.className = "nick";
+		var nickname = text.split(": ")[0] + ": ";
+		nick.innerHTML = (0, _misc.escapeHTML)(nickname);
+		message.appendChild(nick);
+		text = text.slice(nickname.length);
+	} else if (text.startsWith("[Server]") || text.startsWith("Server:") || text.startsWith("Nickname set to") || text.startsWith("User: ")) {
+		message.className = "server";
+	} else if (text.startsWith("->")) {
+		message.className = "tell";
+	} else if (text.startsWith("(M)")) {
+		message.className = "moderator";
+	} else if (isNaN(text.split(": ")[0]) && text.split(": ")[0].charAt(0) != "[") {
+		message.className = "admin";
+		isAdmin = true;
+	} else {
+		var nick = document.createElement("span");
+		nick.className = "nick";
+		var nickname = text.split(": ")[0] + ": ";
+		nick.innerHTML = (0, _misc.escapeHTML)(nickname);
+		message.appendChild(nick);
+		text = text.slice(nickname.length);
+	}
+	var idIndex = text.indexOf(': '); /* This shouldn't be like this, change on proto switch */
+	if (idIndex !== -1) {
+		var ntext = text.substr(0, idIndex);
+		realText = ntext.replace(/\d+/g, '') + text.slice(idIndex + 2);
+	}
+
+	if (misc.lastMessage && misc.lastMessage.text === realText) {
+		misc.lastMessage.incCount();
+	} else {
+		var span = document.createElement("span");
+		misc.lastMessage = {
+			get text() {
+				return realText;
+			},
+			incCount: function incCount() {
+				var times = span.recvTimes || 1;
+				span.innerHTML = text + ' [x' + ++times + ']';
+				span.recvTimes = times;
+				message.style.animation = 'none'; /* Reset fading anim */
+				message.offsetHeight; /* Reflow */
+				message.style.animation = null;
+			}
+		};
+		if (!isAdmin) {
+			text = (0, _misc.escapeHTML)(text).replace(/\&\#x2F;/g, "/");
+		}
+		span.innerHTML = (0, _anchorme2.default)(text, {
+			attributes: [{
+				name: "target",
+				value: "blank"
+			}]
+		});
+		message.appendChild(span);
+		scrollChatToBottom(function () {
+			elements.chatMessages.appendChild(message);
+			var childs = elements.chatMessages.children;
+			if (childs.length > _conf.options.maxChatBuffer) {
+				childs[0].remove();
+			}
+		}, true);
+	}
+}
+
+function receiveDevMessage(text) {
+	var message = document.createElement("li");
+	var span = document.createElement("span");
+	span.innerHTML = text;
+	message.appendChild(span);
+	elements.devChatMessages.appendChild(message);
+	elements.devChatMessages.scrollTop = elements.devChatMessages.scrollHeight;
+}
+
+function scrollChatToBottom(callback) {
+	var dontScrollIfNotTop = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+
+	var shouldScroll = !dontScrollIfNotTop || elements.chatMessages.scrollHeight - elements.chatMessages.scrollTop === elements.chatMessages.clientHeight;
+	if (callback) callback(); // add all elements here
+	if (shouldScroll) elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+}
+
+function clearChat() {
+	elements.chatMessages.innerHTML = "";
+	elements.devChatMessages.innerHTML = "";
+}
+
+function tick() {
+	var tickNum = ++misc.tick;
+	var speed = Math.max(Math.min(_conf.options.movementSpeed, 64), 0);
+	var offX = 0;
+	var offY = 0;
+	if (keysDown[38]) {
+		// Up
+		offY -= speed;
+	}
+	if (keysDown[37]) {
+		// Left
+		offX -= speed;
+	}
+	if (keysDown[40]) {
+		// Down
+		offY += speed;
+	}
+	if (keysDown[39]) {
+		// Right
+		offX += speed;
+	}
+	if (offX !== 0 || offY !== 0) {
+		(0, _canvas_renderer.moveCameraBy)(offX, offY);
+		updateMouse(null, 'mousemove', mouse.x, mouse.y);
+	}
+
+	_global.eventSys.emit(_conf.EVENTS.tick, tickNum);
+	if (_local_player.player.tool !== null && misc.world !== null) {
+		_local_player.player.tool.call('tick', mouse);
+	}
+}
+
+function updateMouse(event, eventName, mouseX, mouseY) {
+	mouse.x = mouseX;
+	mouse.y = mouseY;
+	var cancelled = 0;
+	if (misc.world !== null) {
+		mouse.validTile = misc.world.validMousePos(mouse.tileX, mouse.tileY);
+		if (_local_player.player.tool !== null) {
+			cancelled = _local_player.player.tool.call(eventName, [mouse, event]);
+		}
+		if (updateXYDisplay(mouse.tileX, mouse.tileY)) {
+			(0, _local_player.updateClientFx)();
+		}
+	}
+	return cancelled;
+}
+
+function openChat() {
+	elements.chat.className = "active selectable";
+	elements.devChat.className = "active selectable";
+	elements.chatMessages.className = "active";
+	scrollChatToBottom();
+}
+
+function closeChat() {
+	elements.chat.className = "";
+	elements.devChat.className = "";
+	elements.chatMessages.className = "";
+	elements.chatInput.blur();
+	scrollChatToBottom();
+}
+
+function showDevChat(bool) {
+	elements.devChat.style.display = bool ? "" : "none";
+}
+
+function showPlayerList(bool) {
+	if (bool) {
+		_windowsys.windowSys.addWindow(playerListWindow);
+	} else {
+		_windowsys.windowSys.delWindow(playerListWindow);
+	}
+}
+
+function updateXYDisplay(x, y) {
+	if (misc.lastXYDisplay[0] !== x || misc.lastXYDisplay[1] !== y) {
+		misc.lastXYDisplay = [x, y];
+		elements.xyDisplay.innerHTML = "X: " + x + ", Y: " + y;
+		return true;
+	}
+	return false;
+}
+
+function updatePlayerCount(count) {
+	elements.playerCountDisplay.innerHTML = count + ' cursor' + (count !== 1 ? 's online' : ' online');
+}
+/*
+function openServerSelector() {
+	windowsys.addWindow(new GUIWindow(0, 0, 250, 60, "Select a server", {
+			centered: true
+		}, wdow => {
+
+		wdow.addObj(mkHTML("button", {
+			innerHTML: "Original server",
+			style: "width: 100%; height: 50%",
+			onclick: () => {
+				w.options.serverAddress = "ws://ourworldofpixels.com:443";
+				w.net.connect();
+				win.wm.delWindow(win);
+				w.options.oldserver = true;
+			}
+		}));
+		wdow.addObj(mkHTML("button", {
+			innerHTML: "Beta server",
+			style: "width: 100%; height: 50%",
+			onclick: () => {
+				w.options.serverAddress = "ws://vanillaplay.ddns.net:25565";
+				w.net.connect();
+				win.wm.delWindow(win);
+			}
+		}));
+		wdow.addObj(mkHTML("button", {
+			innerHTML: "Localhost",
+			style: "width: 100%; height: 50%",
+			onclick: () => {
+				w.options.serverAddress = "ws://localhost:25565";
+				w.net.connect();
+				win.wm.delWindow(win);
+			}
+		}));
+		wdow.addObj(mkHTML("button", {
+			innerHTML: "Custom server",
+			style: "width: 100%; height: 50%",
+			onclick: function() {
+				var i = win.wm.addWindow(
+					new UtilInput("Enter server address", "Type here...", "text", function(addr) {
+						w.options.serverAddress = addr;
+						w.net.connect();
+						win.close();
+					}.bind({w: w, win: win}))
+				);
+				win.onclose = function() {
+					i.getWindow().close();
+				}
+			}.bind({w: this, win: wdow})
+		}));
+	}));
+}
+*/
+function logoMakeRoom(bool) {
+	elements.loadUl.style.transform = bool ? "translateY(-75%) scale(0.5)" : "";
+}
+
+function showWorldUI(bool) {
+	misc.guiShown = bool;
+	elements.xyDisplay.style.transform = bool ? "initial" : "";
+	elements.playerCountDisplay.style.transform = bool ? "initial" : "";
+	elements.palette.style.transform = bool ? "translateY(-50%)" : "";
+	elements.chat.style.transform = bool ? "initial" : "";
+	elements.chatInput.disabled = !bool;
+	elements.chatInput.style.display = "initial";
+}
+
+function showLoadScr(bool, showOptions) {
+	elements.loadOptions.className = showOptions ? "framed" : "hide";
+	if (!bool) {
+		elements.loadScr.style.transform = "translateY(-110%)"; /* +10% for shadow */
+		(0, _misc.eventOnce)(elements.loadScr, "transitionend webkitTransitionEnd oTransitionEnd msTransitionEnd", function () {
+			if (_networking.net.isConnected()) {
+				elements.loadScr.className = "hide";
+			}
+		});
+	} else {
+		elements.loadScr.className = "";
+		elements.loadScr.style.transform = "";
+	}
+}
+
+function statusMsg(showSpinner, message) {
+	var statusShown = elements.status.isConnected;
+	if (message === null) {
+		elements.status.style.display = "none";
+		return;
+	} else {
+		elements.status.style.display = "";
+	}
+	elements.statusMsg.innerHTML = message;
+	elements.spinner.style.display = showSpinner ? "" : "none";
+}
+
+function inGameDisconnected() {
+	showWorldUI(false);
+	showLoadScr(true, true);
+	statusMsg(false, "Lost connection with the server.");
+	misc.world = null;
+	elements.chat.style.transform = "initial";
+	elements.chatInput.style.display = "";
+}
+
+function retryingConnect(serverGetter, worldName) {
+	if (misc.connecting && !_networking.net.isConnected()) {
+		/* We're already connected/trying to connect */
+		return;
+	}
+	misc.connecting = true;
+	var currentServer = serverGetter(false);
+	var tryConnect = function tryConnect(tryN) {
+		if (tryN >= (currentServer.maxRetries || 3)) {
+			currentServer = serverGetter(true);
+			tryN = 0;
+		}
+		_global.eventSys.once(_conf.EVENTS.net.connecting, function () {
+			console.debug('Trying \'' + currentServer.title + '\' (' + currentServer.url + ')...');
+			statusMsg(true, 'Connecting to \'' + currentServer.title + '\'...');
+			showLoadScr(true, false);
+		});
+		_networking.net.connect(currentServer, worldName);
+		var disconnected = function disconnected() {
+			++tryN;
+			statusMsg(true, 'Couldn\'t connect to server, retrying... (' + tryN + ')');
+			setTimeout(tryConnect, Math.min(tryN * 2000, 10000), tryN);
+			_global.eventSys.removeListener(_conf.EVENTS.net.connected, connected);
+		};
+		var connected = function connected() {
+			statusMsg(false, "Connected!");
+			_global.eventSys.removeListener(_conf.EVENTS.net.disconnected, disconnected);
+			_global.eventSys.once(_conf.EVENTS.net.disconnected, inGameDisconnected);
+			misc.connecting = false;
+		};
+
+		_global.eventSys.once(_conf.EVENTS.net.connected, connected);
+		_global.eventSys.once(_conf.EVENTS.net.disconnected, disconnected);
+	};
+	tryConnect(0);
+}
+
+function saveWorldPasswords() {
+	if (misc.storageEnabled) {
+		localStorage.worldPasswords = JSON.stringify(misc.worldPasswords);
+	}
+}
+
+function checkFunctionality(callback) {
+	/* Multi Browser Support */
+	window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame || function (f) {
+		setTimeout(f, 1000 / _conf.options.fallbackFps);
+	};
+
+	Number.isInteger = Number.isInteger || function (n) {
+		return Math.floor(n) === n && Math.abs(n) !== Infinity;
+	};
+	Math.trunc = Math.trunc || function (n) {
+		return n | 0;
+	};
+
+	var toBlob = HTMLCanvasElement.prototype.toBlob = HTMLCanvasElement.prototype.toBlob || HTMLCanvasElement.prototype.msToBlob;
+
+	if (!toBlob) {
+		/* Load toBlob polyfill */
+		(0, _misc.loadScript)(__webpack_require__(28), callback);
+	} else {
+		callback();
+	}
+}
+
+function init() {
+	var viewport = elements.viewport;
+	var chatinput = elements.chatInput;
+
+	if (misc.storageEnabled && localStorage.worldPasswords) {
+		try {
+			misc.worldPasswords = JSON.parse(localStorage.worldPasswords);
+		} catch (e) {}
+	}
+
+	misc.lastCleanup = 0;
+
+	viewport.oncontextmenu = function () {
+		return false;
+	};
+
+	viewport.addEventListener("mouseenter", function () {
+		mouse.insideViewport = true;
+		(0, _local_player.updateClientFx)();
+	});
+	viewport.addEventListener("mouseleave", function () {
+		mouse.insideViewport = false;
+		(0, _local_player.updateClientFx)();
+	});
+
+	var chatHistory = [];
+	var historyIndex = 0;
+	chatinput.addEventListener("keydown", function (event) {
+		event.stopPropagation();
+		if (historyIndex === 0) {
+			chatHistory[0] = chatinput.value;
+		}
+		var keyCode = event.which || event.keyCode;
+		switch (keyCode) {
+			case 27:
+				closeChat();
+				break;
+			case 13:
+				if (!event.shiftKey) {
+					event.preventDefault();
+					var text = chatinput.value;
+					historyIndex = 0;
+					chatHistory.unshift(text);
+					if (misc.storageEnabled) {
+						if (text.startsWith("/adminlogin ")) {
+							localStorage.adminlogin = text.slice(12);
+						} else if (text.startsWith("/modlogin ")) {
+							localStorage.modlogin = text.slice(10);
+						} else if (text.startsWith("/nick")) {
+							var nick = text.slice(6);
+							if (nick.length) {
+								localStorage.nick = nick;
+							} else {
+								delete localStorage.nick;
+							}
+						} else if (text.startsWith("/pass ") && misc.world) {
+							var pass = text.slice(6);
+							misc.worldPasswords[_networking.net.protocol.worldName] = pass;
+							saveWorldPasswords();
+						}
+					}
+					if (!event.ctrlKey) {
+						text = misc.chatSendModifier(text);
+					}
+					_networking.net.protocol.sendMessage(text);
+					chatinput.value = '';
+					chatinput.style.height = "16px";
+					event.stopPropagation();
+				}
+				break;
+			case 38:
+				// Arrow up
+				if (event.shiftKey && historyIndex < chatHistory.length - 1) {
+					historyIndex++;
+					chatinput.value = chatHistory[historyIndex];
+					chatinput.style.height = 0;
+					chatinput.style.height = Math.min(chatinput.scrollHeight - 8, 16 * 4) + "px";
+				}
+				break;
+			case 40:
+				// Arrow Down
+				if (event.shiftKey && historyIndex > 0) {
+					historyIndex--;
+					chatinput.value = chatHistory[historyIndex];
+					chatinput.style.height = 0;
+					chatinput.style.height = Math.min(chatinput.scrollHeight - 8, 16 * 4) + "px";
+				}
+				break;
+		}
+	});
+	chatinput.addEventListener("keyup", function (event) {
+		event.stopPropagation();
+		var keyCode = event.which || event.keyCode;
+		if (keyCode == 13 && !event.shiftKey) {
+			closeChat();
+		}
+	});
+	chatinput.addEventListener("input", function (event) {
+		chatinput.style.height = 0;
+		chatinput.style.height = Math.min(chatinput.scrollHeight - 8, 16 * 4) + "px";
+	});
+	chatinput.addEventListener("focus", function (event) {
+		if (!mouse.buttons) {
+			openChat();
+		} else {
+			chatinput.blur();
+		}
+	});
+
+	window.addEventListener("keydown", function (event) {
+		var keyCode = event.which || event.keyCode;
+		if (document.activeElement.tagName !== "INPUT" && misc.world !== null) {
+			keysDown[keyCode] = true;
+			var tool = _local_player.player.tool;
+			if (tool !== null && misc.world !== null && tool.isEventDefined('keydown')) {
+				if (tool.call('keydown', [keysDown, event])) {
+					return false;
+				}
+			}
+			switch (keyCode) {
+				case 80:
+					/* P */
+					_local_player.player.tool = "pipette";
+					break;
+
+				case 79:
+					/* O */
+					_local_player.player.tool = "cursor";
+					break;
+
+				case 77: /* M */
+				case 16:
+					/* Shift */
+					_local_player.player.tool = "move";
+					break;
+
+				case 90:
+					/* Ctrl + Z */
+					if (!event.ctrlKey || !misc.world) {
+						break;
+					}
+					misc.world.undo(event.shiftKey);
+					event.preventDefault();
+					break;
+
+				case 70:
+					/* F */
+					var parseClr = function parseClr(clr) {
+						var tmp = clr.split(',');
+						var nrgb = null;
+						if (tmp.length == 3) {
+							nrgb = tmp;
+							for (var i = 0; i < tmp.length; i++) {
+								tmp[i] = +tmp[i];
+								if (!(tmp[i] >= 0 && tmp[i] < 256)) {
+									return null;
+								}
+							}
+						} else if (clr[0] == '#' && clr.length == 7) {
+							var colr = parseInt(clr.replace('#', '0x'));
+							/* The parsed HTML color doesn't have red as the first byte, so invert it. */
+							nrgb = [colr >> 16 & 0xFF, colr >> 8 & 0xFF, colr & 0xFF];
+						}
+						return nrgb;
+					};
+					var input = prompt("Custom color\nType three values separated by a comma: r,g,b\n(...or the hex string: #RRGGBB)\nYou can add multiple colors at a time separating them with a space.");
+					if (!input) {
+						break;
+					}
+					input = input.split(' ');
+					for (var j = 0; j < input.length; j++) {
+						var rgb = parseClr(input[j]);
+						if (rgb) {
+							_local_player.player.selectedColor = rgb;
+						}
+					}
+
+					break;
+
+				case 71:
+					/* G */
+					_canvas_renderer.renderer.showGrid(!_canvas_renderer.renderer.gridShown);
+					break;
+
+				case 112:
+					/* F1 */
+					showWorldUI(!misc.guiShown);
+					event.preventDefault();
+					break;
+
+				case 107:
+				case 187:
+					++_canvas_renderer.camera.zoom;
+					break;
+
+				case 109:
+				case 189:
+					--_canvas_renderer.camera.zoom;
+					break;
+
+				default:
+					return true;
+					break;
+			}
+			return false;
+		}
+	});
+	window.addEventListener("keyup", function (event) {
+		var keyCode = event.which || event.keyCode;
+		delete keysDown[keyCode];
+		if (document.activeElement.tagName !== "INPUT") {
+			var tool = _local_player.player.tool;
+			if (tool !== null && misc.world !== null && tool.isEventDefined('keyup')) {
+				if (tool.call('keyup', [keysDown, event])) {
+					return false;
+				}
+			}
+			if (keyCode == 13) {
+				elements.chatInput.focus();
+			} else if (keyCode == 16) {
+				_local_player.player.tool = "cursor";
+			}
+		}
+	});
+	viewport.addEventListener("mousedown", function (event) {
+		closeChat();
+		mouse.lastX = mouse.x;
+		mouse.lastY = mouse.y;
+		mouse.x = event.pageX;
+		mouse.y = event.pageY;
+		mouse.mouseDownWorldX = mouse.worldX;
+		mouse.mouseDownWorldY = mouse.worldY;
+		if ('buttons' in event) {
+			mouse.buttons = event.buttons;
+		} else {
+			var realBtn = event.button;
+			if (realBtn === 2) {
+				realBtn = 1;
+			} else if (realBtn === 1) {
+				realBtn = 2;
+			}
+			mouse.buttons |= 1 << realBtn;
+		}
+
+		var tool = _local_player.player.tool;
+		if (tool !== null && misc.world !== null) {
+			_local_player.player.tool.call('mousedown', [mouse, event]);
+		}
+	});
+
+	window.addEventListener("mouseup", function (event) {
+		/* Old versions of firefox have the buttons property as the
+   * buttons released, instead of the currently pressed buttons.
+   **/
+		if ('buttons' in event && !misc.usingFirefox) {
+			mouse.buttons = event.buttons;
+		} else {
+			var realBtn = event.button;
+			if (realBtn === 2) {
+				realBtn = 1;
+			} else if (realBtn === 1) {
+				realBtn = 2;
+			}
+			mouse.buttons &= ~(1 << realBtn);
+		}
+		var tool = _local_player.player.tool;
+		if (tool !== null && misc.world !== null) {
+			_local_player.player.tool.call('mouseup', [mouse, event]);
+		}
+	});
+
+	window.addEventListener("mousemove", function (event) {
+		var cancelledButtons = updateMouse(event, 'mousemove', event.pageX, event.pageY);
+		var remainingButtons = mouse.buttons & ~cancelledButtons;
+		if (remainingButtons & 4) {
+			/* If middle click was not used for anything */
+			(0, _canvas_renderer.moveCameraBy)((mouse.mouseDownWorldX - mouse.worldX) / 16, (mouse.mouseDownWorldY - mouse.worldY) / 16);
+		}
+	});
+
+	var mousewheel = function mousewheel(event) {
+		var nevt = (0, _normalizeWheel.normalizeWheel)(event);
+		if (_local_player.player.tool !== null && misc.world !== null && _local_player.player.tool.isEventDefined('scroll')) {
+			if (_local_player.player.tool.call('scroll', [mouse, nevt, event])) {
+				return;
+			}
+		}
+		if (event.ctrlKey) {
+			_canvas_renderer.camera.zoom += Math.max(-1, Math.min(1, -nevt.pixelY));
+			//-nevt.spinY * camera.zoom / options.zoomLimitMax; // <- needs to be nicer
+		} else {
+			var delta = Math.max(-1, Math.min(1, nevt.spinY));
+			var pIndex = _local_player.player.paletteIndex;
+			if (delta > 0) {
+				pIndex++;
+			} else if (delta < 0) {
+				pIndex--;
+			}
+			_local_player.player.paletteIndex = pIndex;
+		}
+	};
+
+	var wheelEventName = 'onwheel' in document ? 'wheel' : 'onmousewheel' in document ? 'mousewheel' : 'DOMMouseScroll';
+
+	viewport.addEventListener(wheelEventName, mousewheel, { passive: true });
+	viewport.addEventListener(wheelEventName, function (e) {
+		e.preventDefault();
+		return false;
+	}, { passive: false });
+
+	// Touch support
+	var touchEventNoUpdate = function touchEventNoUpdate(evtName) {
+		return function (event) {
+			var tool = _local_player.player.tool;
+			mouse.buttons = 0;
+			if (tool !== null && misc.world !== null) {
+				_local_player.player.tool.call(evtName, [mouse, event]);
+			}
+		};
+	};
+	viewport.addEventListener("touchstart", function (event) {
+		var moved = event.changedTouches[0];
+		mouse.buttons = 1;
+		if (moved) {
+			updateMouse(event, 'touchstart', moved.pageX, moved.pageY);
+			mouse.mouseDownWorldX = mouse.worldX;
+			mouse.mouseDownWorldY = mouse.worldY;
+		}
+	}, { passive: true });
+	viewport.addEventListener("touchmove", function (event) {
+		var moved = event.changedTouches[0];
+		if (moved) {
+			updateMouse(event, 'touchmove', moved.pageX, moved.pageY);
+		}
+	}, { passive: true });
+	viewport.addEventListener("touchend", touchEventNoUpdate('touchend'), { passive: true });
+	viewport.addEventListener("touchcancel", touchEventNoUpdate('touchcancel'), { passive: true });
+
+	// Some cool custom css
+	console.log("%c" + "───────╔╗╔╗────────╔═══╦═══╦═══╗╔═══╦╗╔╗╔╦═══╦═══╗ \n" + "──────╔╝╚╣║────────║╔═╗║╔═╗║╔═╗║║╔═╗║║║║║║╔═╗║╔═╗║ \n" + "╔╗╔╦══╬╗╔╣╚═╦╦══╦══╬╝╔╝╠╝╔╝╠╝╔╝║║║─║║║║║║║║─║║╚═╝║ \n" + "║╚╝║╔╗║║║║╔╗╠╣╔╗║══╬╗╚╗║─║╔╝─║╔╝║║─║║╚╝╚╝║║─║║╔══╝ \n" + "║║║║╔╗║║╚╣║║║║╔╗╠══║╚═╝║─║║──║║─║╚═╝╠╗╔╗╔╣╚═╝║║ \n" + "╚╩╩╩╝╚╝╚═╩╝╚╩╩╝╚╩══╩═══╝─╚╝──╚╝─╚═══╝╚╝╚╝╚═══╩╝", "font-size: 15px; font-weight: bold; color: #0099ff;");
+	console.log("%cWelcome to the developer console! Can u dont change anything here!!!", "font-size: 20px; font-weight: bold; color: #ff0000;");
+
+	//windowSys.addWindow(new OWOPDropDown());
+	(0, _all.resolveProtocols)();
+
+	/* Calls other initialization functions */
+	_global.eventSys.emit(_conf.EVENTS.init);
+
+	updateXYDisplay(0, 0);
+
+	var worldName = decodeURIComponent(window.location.hash.slice(1));
+	if (worldName[0] === '/') {
+		worldName = worldName.slice(1);
+	}
+
+	misc.urlWorldName = worldName;
+
+	var serverGetter = function (serverList) {
+		var defaults = [];
+		var availableServers = [];
+		for (var i = 0; i < serverList.length; i++) {
+			if (serverList[i].default) {
+				defaults.push(serverList[i]);
+			} else {
+				availableServers.push(serverList[i]);
+			}
+		}
+		var index = 0;
+		return function (next) {
+			if (next) {
+				defaults.pop();
+				++index;
+			}
+			if (defaults.length) {
+				var sv = defaults[0];
+				availableServers.push(sv);
+				return sv;
+			}
+			return availableServers[index % availableServers.length];
+		};
+	}(_conf.options.serverAddress);
+
+	retryingConnect(serverGetter, misc.urlWorldName);
+
+	elements.reconnectBtn.onclick = function () {
+		return retryingConnect(serverGetter, misc.urlWorldName);
+	};
+
+	misc.tickInterval = setInterval(tick, 1000 / _conf.options.tickSpeed);
+}
+
+_global.eventSys.once(_conf.EVENTS.loaded, function () {
+	return statusMsg(true, "Initializing...");
+});
+_global.eventSys.once(_conf.EVENTS.misc.logoMakeRoom, function () {
+	statusMsg(false, null);
+	logoMakeRoom();
+});
+
+_global.eventSys.once(_conf.EVENTS.loaded, init);
+_global.eventSys.on(_conf.EVENTS.net.playerCount, updatePlayerCount);
+
+_global.eventSys.on(_conf.EVENTS.net.chat, receiveMessage);
+_global.eventSys.on(_conf.EVENTS.net.devChat, receiveDevMessage);
+
+_global.eventSys.on(_conf.EVENTS.net.world.setId, function (id) {
+	if (!misc.storageEnabled) {
+		return;
+	}
+
+	function autoNick() {
+		if (localStorage.nick) {
+			_networking.net.protocol.sendMessage("/nick " + localStorage.nick);
+		}
+	}
+
+	// Automatic login
+	var desiredRank = localStorage.adminlogin ? _conf.RANK.ADMIN : localStorage.modlogin ? _conf.RANK.MODERATOR : _networking.net.protocol.worldName in misc.worldPasswords ? _conf.RANK.USER : _conf.RANK.NONE;
+	if (desiredRank > _conf.RANK.NONE) {
+		var onWrong = function onWrong() {
+			console.log("FAIL!!");
+			_global.eventSys.removeListener(_conf.EVENTS.net.sec.rank, onCorrect);
+			if (desiredRank == _conf.RANK.ADMIN) {
+				delete localStorage.adminlogin;
+			} else if (desiredRank == _conf.RANK.MODERATOR) {
+				delete localStorage.modlogin;
+			} else if (desiredRank == _conf.RANK.USER) {
+				delete misc.worldPasswords[_networking.net.protocol.worldName];
+				saveWorldPasswords();
+			}
+			retryingConnect(function () {
+				return _networking.net.currentServer;
+			}, _networking.net.protocol.worldName);
+		};
+		var onCorrect = function onCorrect(newrank) {
+			if (newrank == desiredRank) {
+				setTimeout(function () {
+					/* Ugly fix for wrong password on worlds without one */
+					_global.eventSys.removeListener(_conf.EVENTS.net.disconnected, onWrong);
+				}, 1000);
+				_global.eventSys.removeListener(_conf.EVENTS.net.sec.rank, onCorrect);
+				autoNick();
+			}
+		};
+		_global.eventSys.once(_conf.EVENTS.net.disconnected, onWrong);
+		_global.eventSys.on(_conf.EVENTS.net.sec.rank, onCorrect);
+		var msg;
+		if (desiredRank == _conf.RANK.ADMIN) {
+			msg = "/adminlogin " + localStorage.adminlogin;
+		} else if (desiredRank == _conf.RANK.MODERATOR) {
+			msg = "/modlogin " + localStorage.modlogin;
+		} else if (desiredRank == _conf.RANK.USER) {
+			msg = "/pass " + misc.worldPasswords[_networking.net.protocol.worldName];
+		}
+		_networking.net.protocol.sendMessage(msg);
+	} else {
+		autoNick();
+	}
+});
+
+_global.eventSys.on(_conf.EVENTS.misc.windowAdded, function (window) {
+	if (misc.world === null) {
+		statusMsg(false, null);
+		logoMakeRoom(true);
+	}
+});
+
+_global.eventSys.on(_conf.EVENTS.net.world.joining, function (name) {
+	logoMakeRoom(false);
+	console.log('Joining world: ' + name);
+});
+
+_global.eventSys.on(_conf.EVENTS.net.world.join, function (world) {
+	showLoadScr(false, false);
+	showWorldUI(true);
+	sounds.play(sounds.launch);
+	misc.world = new _World.World(world);
+	_global.eventSys.emit(_conf.EVENTS.misc.worldInitialized);
+});
+
+_global.eventSys.on(_conf.EVENTS.net.connected, function () {
+	clearChat();
+});
+
+_global.eventSys.on(_conf.EVENTS.camera.moved, function (camera) {
+	var time = (0, _misc.getTime)();
+	if (misc.world !== null && time - misc.lastCleanup > 1000) {
+		misc.lastCleanup = time;
+		_canvas_renderer.renderer.unloadFarClusters();
+	}
+	if (updateXYDisplay(mouse.tileX, mouse.tileY)) {
+		(0, _local_player.updateClientFx)();
+	}
+});
+
+_global.eventSys.on(_conf.EVENTS.camera.zoom, function (camera) {
+	if (updateXYDisplay(mouse.tileX, mouse.tileY)) {
+		(0, _local_player.updateClientFx)();
+	}
+});
+
+window.addEventListener("error", function (e) {
+	showDevChat(true);
+	var errmsg = e && e.error ? e.error.message || e.error.stack : e.message || "Unknown error occurred";
+	errmsg = (0, _misc.escapeHTML)(errmsg);
+	errmsg = errmsg.split('\n');
+	for (var i = 0; i < errmsg.length; i++) {
+		/* Should be some kind of dissapearing notification instead */
+		receiveDevMessage(errmsg[i]);
+	}
+	if (_local_player.player.rank !== _conf.RANK.ADMIN) {
+		/* TODO */
+		if (misc.exceptionTimeout) {
+			clearTimeout(misc.exceptionTimeout);
+		}
+		misc.exceptionTimeout = setTimeout(function () {
+			return showDevChat(false);
+		}, 5000);
+	}
+});
+
+window.addEventListener("load", function () {
+	elements.loadScr = document.getElementById("load-scr");
+	elements.loadUl = document.getElementById("load-ul");
+	elements.loadOptions = document.getElementById("load-options");
+	elements.reconnectBtn = document.getElementById("reconnect-btn");
+	elements.spinner = document.getElementById("spinner");
+	elements.statusMsg = document.getElementById("status-msg");
+	elements.status = document.getElementById("status");
+	elements.logo = document.getElementById("logo");
+
+	elements.xyDisplay = document.getElementById("xy-display");
+	elements.devChat = document.getElementById("dev-chat");
+	elements.chat = document.getElementById("chat");
+	elements.devChatMessages = document.getElementById("dev-chat-messages");
+	elements.chatMessages = document.getElementById("chat-messages");
+	elements.playerCountDisplay = document.getElementById("playercount-display");
+
+	elements.palette = document.getElementById("palette");
+	elements.paletteColors = document.getElementById("palette-colors");
+	elements.paletteCreate = document.getElementById("palette-create");
+	elements.paletteInput = document.getElementById("palette-input");
+
+	elements.animCanvas = document.getElementById("animations");
+
+	elements.viewport = document.getElementById("viewport");
+	elements.windows = document.getElementById("windows");
+
+	elements.chatInput = document.getElementById("chat-input");
+
+	document.getElementById("help-button").addEventListener("click", function () {
+		document.getElementById("help").className = "";
+	});
+	document.getElementById("help-close").addEventListener("click", function () {
+		document.getElementById("help").className = "hidden";
+	});
+
+	checkFunctionality(function () {
+		return _global.eventSys.emit(_conf.EVENTS.loaded);
+	});
+});
+
+/* Public API definitions */
+_global.PublicAPI.emit = _global.eventSys.emit.bind(_global.eventSys);
+_global.PublicAPI.on = _global.eventSys.on.bind(_global.eventSys);
+_global.PublicAPI.once = _global.eventSys.once.bind(_global.eventSys);
+_global.PublicAPI.removeListener = _global.eventSys.removeListener.bind(_global.eventSys);
+_global.PublicAPI.elements = elements;
+_global.PublicAPI.mouse = mouse;
+_global.PublicAPI.world = getNewWorldApi();
+_global.PublicAPI.chat = {
+	send: function send(msg) {
+		return _networking.net.protocol && _networking.net.protocol.sendMessage(msg);
+	},
+	clear: clearChat,
+	local: receiveMessage,
+	get recvModifier() {
+		return misc.chatRecvModifier;
+	},
+	set recvModifier(fn) {
+		misc.chatRecvModifier = fn;
+	},
+	get sendModifier() {
+		return misc.chatSendModifier;
+	},
+	set sendModifier(fn) {
+		misc.chatSendModifier = fn;
+	}
+};
+_global.PublicAPI.sounds = sounds;
+
+/***/ }),
 /* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -1982,13 +1686,13 @@ var _conf = __webpack_require__(1);
 
 var _global = __webpack_require__(0);
 
-var _main = __webpack_require__(2);
+var _main = __webpack_require__(3);
 
 var _local_player = __webpack_require__(6);
 
 var _Fx = __webpack_require__(7);
 
-var _misc = __webpack_require__(3);
+var _misc = __webpack_require__(2);
 
 var _color = __webpack_require__(4);
 
@@ -2706,9 +2410,9 @@ var _global = __webpack_require__(0);
 
 var _conf = __webpack_require__(1);
 
-var _misc = __webpack_require__(3);
+var _misc = __webpack_require__(2);
 
-var _main = __webpack_require__(2);
+var _main = __webpack_require__(3);
 
 var _color = __webpack_require__(4);
 
@@ -2736,8 +2440,12 @@ var toolSelected = null;
 	[0x29, 0x36, 0x6F], [0x40, 0x5B, 0xD0], [0x4F, 0xA4, 0xF7], [0x86, 0xEC, 0xF8],
 	[0xF4, 0xF4, 0xF4], [0x93, 0xB6, 0xC1], [0x55, 0x71, 0x85], [0x32, 0x40, 0x56]
 ];*/
-// ENDESGA 16 palette
-var palette = [[0xE4, 0xA6, 0x72], [0xB8, 0x6F, 0x50], [0x74, 0x3F, 0x39], [0x3F, 0x28, 0x32], [0x9E, 0x28, 0x35], [0xE5, 0x3B, 0x44], [0xFB, 0x92, 0x2B], [0xFF, 0xE7, 0x62], [0x63, 0xC6, 0x4D], [0x32, 0x73, 0x45], [0x19, 0x3D, 0x3F], [0x4F, 0x67, 0x81], [0xAF, 0xBF, 0xD2], [0xFF, 0xFF, 0xFF], [0x2C, 0xE8, 0xF4], [0x04, 0x84, 0xD1]];
+
+//originall colors + hallowen colors
+var palette = [[0xE4, 0xA6, 0x72], [0xB8, 0x6F, 0x50], [0x74, 0x3F, 0x39], [0x3F, 0x28, 0x32], [0x9E, 0x28, 0x35], [0xE5, 0x3B, 0x44], [0xFB, 0x92, 0x2B], [0xFF, 0xE7, 0x62], [0x63, 0xC6, 0x4D], [0x32, 0x73, 0x45], [0x19, 0x3D, 0x3F], [0x4F, 0x67, 0x81], [0xAF, 0xBF, 0xD2], [0xFF, 0xFF, 0xFF], [0x2C, 0xE8, 0xF4], [0x04, 0x84, 0xD1], [0x1b, 0x0c, 0x23], [0x3e, 0x1c, 0x33], [0x8e, 0x21, 0x49], [0xf6, 0x92, 0x1d], [0xb1, 0x46, 0x23], [0x6d, 0xb7, 0x0e], [0x48, 0x79, 0x08]];
+// ENDESGA 16 palette colors
+//originall colors
+//var palette = [[0xE4, 0xA6, 0x72], [0xB8, 0x6F, 0x50], [0x74, 0x3F, 0x39], [0x3F, 0x28, 0x32], [0x9E, 0x28, 0x35], [0xE5, 0x3B, 0x44], [0xFB, 0x92, 0x2B], [0xFF, 0xE7, 0x62], [0x63, 0xC6, 0x4D], [0x32, 0x73, 0x45], [0x19, 0x3D, 0x3F], [0x4F, 0x67, 0x81], [0xAF, 0xBF, 0xD2], [0xFF, 0xFF, 0xFF], [0x2C, 0xE8, 0xF4], [0x04, 0x84, 0xD1]];
 var paletteIndex = 0;
 
 var undoHistory = exports.undoHistory = [];
@@ -2820,9 +2528,6 @@ var player = exports.player = {
 	},
 	get tools() {
 		return _tools.tools;
-	},
-	get id() {
-		return _networking.net.protocol.id;
 	}
 };
 
@@ -2956,14 +2661,12 @@ _global.eventSys.on(_conf.EVENTS.net.sec.rank, function (newRank) {
 		case _conf.RANK.NONE:
 			(0, _main.showDevChat)(false);
 			(0, _main.showPlayerList)(false);
-			(0, _main.revealSecrets)(false);
 			break;
 
 		case _conf.RANK.MODERATOR:
 		case _conf.RANK.ADMIN:
 			(0, _main.showDevChat)(true);
 			(0, _main.showPlayerList)(true);
-			(0, _main.revealSecrets)(true);
 			break;
 	}
 	(0, _tools.updateToolbar)();
@@ -3003,15 +2706,11 @@ var _color = __webpack_require__(4);
 
 var _conf = __webpack_require__(1);
 
-var _misc = __webpack_require__(3);
+var _misc = __webpack_require__(2);
 
 var _global = __webpack_require__(0);
 
 var _canvas_renderer = __webpack_require__(5);
-
-var _local_player = __webpack_require__(6);
-
-var _main = __webpack_require__(2);
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -3043,20 +2742,9 @@ var WORLDFX = exports.WORLDFX = {
 			}
 			var fxx = (x * size - _canvas_renderer.camera.x) * _canvas_renderer.camera.zoom;
 			var fxy = (y * size - _canvas_renderer.camera.y) * _canvas_renderer.camera.zoom;
-			var s = _canvas_renderer.camera.zoom * size;
 			ctx.globalAlpha = alpha;
 			ctx.strokeStyle = fx.extra.htmlRgb || "#000000";
-			ctx.strokeRect(fxx, fxy, s, s);
-			if (_conf.options.enableIdView && _local_player.player.rank >= _conf.RANK.MODERATOR && _canvas_renderer.camera.zoom >= 8 && fx.extra.tag) {
-				fxx += s;
-				var str = fx.extra.tag;
-				var ts = ctx.measureText(str).width;
-				ctx.fillStyle = "#FFFFFF";
-				ctx.strokeStyle = "#000000";
-				ctx.strokeText(str, fxx, fxy);
-				ctx.fillText(str, fxx, fxy);
-			}
-
+			ctx.strokeRect(fxx, fxy, _canvas_renderer.camera.zoom * size, _canvas_renderer.camera.zoom * size);
 			return 0; /* 0 = Animation not finished */
 		};
 	}
@@ -3128,12 +2816,10 @@ _global.PublicAPI.fx = {
 _global.eventSys.on(_conf.EVENTS.net.world.tilesUpdated, function (tiles) {
 	var time = (0, _misc.getTime)(true);
 	var made = false;
-
 	for (var i = 0; i < tiles.length; i++) {
 		var t = tiles[i];
-
 		if (_canvas_renderer.camera.isVisible(t.x, t.y, 1, 1)) {
-			new Fx(WORLDFX.RECT_FADE_ALIGNED(1, t.x, t.y), { htmlRgb: _color.colorUtils.toHTML(t.rgb ^ 0xFFFFFF), tag: '' + t.id });
+			new Fx(WORLDFX.RECT_FADE_ALIGNED(1, t.x, t.y), { htmlRgb: _color.colorUtils.toHTML(t.rgb ^ 0xFFFFFF) });
 			made = true;
 		}
 	}
@@ -3185,7 +2871,7 @@ var net = exports.net = {
 	connect: connect
 };
 
-//PublicAPI.net = net;
+_global.PublicAPI.net = net;
 
 function isConnected() {
 	return net.protocol !== null && net.protocol.isConnected();
@@ -3193,7 +2879,7 @@ function isConnected() {
 
 function connect(server, worldName) {
 	_global.eventSys.emit(_conf.EVENTS.net.connecting, server);
-	net.connection = new WebSocket(server.url);
+	net.connection = new WebSocket('wss://owopforfun.herokuapp.com');
 	net.connection.binaryType = "arraybuffer";
 	net.currentServer = server;
 	net.protocol = new server.proto.class(net.connection, worldName);
@@ -3271,7 +2957,7 @@ var _global = __webpack_require__(0);
 
 var _conf = __webpack_require__(1);
 
-var _misc = __webpack_require__(3);
+var _misc = __webpack_require__(2);
 
 var _tool_renderer = __webpack_require__(13);
 
@@ -3283,7 +2969,7 @@ var _canvas_renderer = __webpack_require__(5);
 
 var _windowsys = __webpack_require__(11);
 
-var _main = __webpack_require__(2);
+var _main = __webpack_require__(3);
 
 var _Fx = __webpack_require__(7);
 
@@ -3461,31 +3147,13 @@ _global.PublicAPI.tool = {
 };
 
 _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
-  
-  // Rainbow handler
-  var rainbowPressed = false;
-  document.addEventListener("keydown", function rainbowToggle(e) {
-    if (e.which == 9 && OWOP.player.rank == 3) {
-      rainbowPressed = !rainbowPressed;
-      if (rainbowPressed == true) {
-        OWOP.chat.local('Server: Rainbow tools enabled.');
-      } else {
-        OWOP.chat.local('Server: Rainbow tools disabled.');
-      }
-    }
-  });
-
 	// Cursor tool
 	addTool(new Tool('Cursor', _tool_renderer.cursors.cursor, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(1), _conf.RANK.USER, function (tool) {
 		var lastX, lastY;
 		tool.setEvent('mousedown mousemove', function (mouse, event) {
 			var usedButtons = 3; /* Left and right mouse buttons are always used... */
 			/* White color if right clicking */
-      if (rainbowPressed == true) {
-			  var color = mouse.buttons === 2 ? [255, 255, 255] : [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0];
-      } else {
-        var color = mouse.buttons === 2 ? [255, 255, 255] : OWOP.player.selectedColor; // I'm not doing that stupid _local_player.player thing. It's too stupid and long.
-      }
+			var color = mouse.buttons === 2 ? [255, 255, 255] : _local_player.player.selectedColor;
 			switch (mouse.buttons) {
 				case 1:
 				case 2:
@@ -3519,16 +3187,16 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 			lastY = null;
 		});
 	}));
-
-  // Brush tool (Doesn't have rainbow cause that would lag the server greatly)
-  addTool(new Tool('Brush', _tool_renderer.cursors.brush, _Fx.PLAYERFX.NONE, _conf.RANK.ADMIN, function (tool) {
+	
+	//brush tool
+		addTool(new Tool('Brush', _tool_renderer.cursors.brush, _Fx.PLAYERFX.NONE, _conf.RANK.ADMIN, function (tool) {
     var brDiameter = 5; //Declaring variable for brush diameter.
     var rainbowPressed = null;    
     var lastX, lastY;
 
     tool.setEvent('mousedown mousemove', function (mouse, event) {
-    var usedButtons = 3; /* Left and right mouse buttons are always used... */
-    var color = mouse.buttons === 2 ? [255, 255, 255] : OWOP.player.selectedColor; /* White color if right clicking */
+    var usedButtons = 3;  //Left and right mouse buttons are always used... 
+    var color = mouse.buttons === 2 ? [255, 255, 255] : OWOP.player.selectedColor; //White color if right clicking
     switch (OWOP.mouse.buttons) {
         case 1:
         case 2:
@@ -3580,7 +3248,7 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
     lastY = null;
     });
     if (OWOP.player.rank == 3) {
-        var brDiamWin = OWOP.windowSys.addWindow(new OWOP.windowSys.class.window('Brush diameter', { closeable: true }, function(win) {
+        var brDiamWin = OWOP.windowSys.addWindow(new OWOP.windowSys.class.window('Brush diameter', {}, function(win) {
         win.container.title = 'Sets brush diameter. (duh)';
         win.container.style.height = '16px';
         win.container.style.overflow = 'hidden';
@@ -3589,7 +3257,7 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
         win.addObj(brDiamElm);
         var Rbar = OWOP.util.mkHTML('input', {
             type: 'range', style: '-moz-appearance:none;-webkit-appearance:none;appearance:none;height:6px;outline:none;float:right;',
-            min: 5, max: 25,
+            min: 2, max: 16,
             value: brDiameter,
             oninput: function() {
                 brDiameter = this.value;
@@ -3600,9 +3268,114 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
             }
         });
         win.addObj(Rbar);
-    }).move(1500, 32));
+    }).move(945, 32));
     }
-  }));
+}));
+	
+//Text Tool
+OWOP.tool.addToolObject(new OWOP.tool.class("Text", OWOP.cursors.write, OWOP.fx.player.NONE, OWOP.RANK.USER, function(tool) {
+	var xPos = null;
+	var yPos = null;
+	var fonts = {};
+	var font = null;
+	
+	var fontInput = new OWOP.windowSys.class.input("Choose Font when no work do enter and say after u enter   . .", 955, "number", function(value) {
+		var id = parseInt(value);
+		if (id in fonts) {
+			font = id;
+			return;
+		}
+		
+		var xhttp = new XMLHttpRequest();
+        xhttp.addEventListener("load", function() {
+            var source = xhttp.responseXML.body.children[2].innerHTML;
+			var data = JSON.parse(source.match(/loadData\('(.+)'\)/)[1]);
+			var meta = source.match(/drawSample\('',([0-9]+),(-?[0-9]+)\)/);
+			data.letterspace = parseInt(meta[1]);
+			data.monospacewidth = parseInt(meta[2]);
+			
+            fonts[id] = data;
+			font = id;
+        });
+        xhttp.open("GET", "https://cors-anywhere.herokuapp.com/http://www.pentacom.jp/pentacom/bitfontmaker2/gallery/?id=" + id);
+        xhttp.responseType = "document";
+        xhttp.send();
+	});
+	
+	var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+    chars += "¡¢£€¤¥¦§¨©ª«¬®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ";
+    chars += "ĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĦħĨĩĪīĬĭĮįİıĲĳĴĵĶķĸĹĺĻļĽľĿŀŁłŃńŅņŇňŉŊŋŌōŎŏŐőŒœŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŦŧŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽž";
+	
+	tool.setFxRenderer(function (fx, ctx, time) {
+        var x = fx.extra.player.x;
+        var y = fx.extra.player.y;
+		if (xPos !== null && yPos !== null) {
+			x = xPos * 16;
+			y = yPos * 16;
+		}
+        var fxx = (Math.floor(x / 16) - OWOP.camera.x) * OWOP.camera.zoom;
+        var fxy = (Math.floor(y / 16) - OWOP.camera.y) * OWOP.camera.zoom;
+        ctx.globalAlpha = 0.8;
+        ctx.strokeStyle = fx.extra.player.htmlRgb;
+        ctx.strokeRect(fxx, fxy, OWOP.camera.zoom, OWOP.camera.zoom * 12);
+        return 0;
+    });
+	
+	tool.setEvent("select", function() {
+		OWOP.windowSys.addWindow(fontInput);
+	});
+	tool.setEvent("deselect", function() {
+		font = null;
+	});
+	
+	tool.setEvent("mousedown mousemove", function (mouse, event) {
+		if (mouse.buttons === 1) {
+			xPos = mouse.tileX;
+			yPos = mouse.tileY;
+		}
+	});
+	tool.setEvent("keydown", function() {return true;});
+	tool.setEvent("keyup", function() {return true;});
+	
+	window.addEventListener("keypress", function(event) {
+		if (font === null || xPos === null || yPos === null || ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+			return;
+		}
+		
+		var f = fonts[font];
+		var letterSpacing = (f.letterspace / 64 | 0) - 1;
+		var isMono = f.monospacewidth !== -1;
+		
+		if (event.which == 32) {
+			xPos += isMono ? f.monospacewidth : 4 + letterSpacing;
+			return;
+		}
+		
+		var char = f[event.which];
+		if (!char) {
+			return;
+		}
+		
+		var width = 0;
+        for (var y=0; y<16; y++) {
+            for (var x=0; x<16; x++) { 
+                if (char[y] & (1 << x) && x > width) width = x;
+            }
+        }
+		
+		var color = OWOP.player.palette[OWOP.player.paletteIndex];
+        for (var y=0; y<16; y++) {
+            for (var x=0; x<16; x++) {
+                if (!(char[y] & (1 << x))) {
+					continue;
+				}
+                OWOP.world.setPixel(xPos + x - 2, yPos + y, color);
+            }
+        }
+		
+		xPos += isMono ? f.monospacewidth : width + letterSpacing;
+	});
+}));
 
 	// Move tool
 	addTool(new Tool('Move', _tool_renderer.cursors.move, _Fx.PLAYERFX.NONE, _conf.RANK.NONE, function (tool) {
@@ -3638,48 +3411,9 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 			}
 		});
 	}));
-
-	// Erase/Fill tool
-	addTool(new Tool('Eraser', _tool_renderer.cursors.erase, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16), _conf.RANK.ADMIN, function (tool) {
-		function fillChunk(chunkX, chunkY, c) {
-			var color = c[2] << 16 | c[1] << 8 | c[0];
-			var chunk = _main.misc.world.getChunkAt(chunkX, chunkY);
-			if (chunk) {
-				var empty = true;
-				firstLoop: for (var y = 0; y < _conf.protocol.chunkSize; y++) {
-					for (var x = 0; x < _conf.protocol.chunkSize; x++) {
-						if ((chunk.get(x, y) & 0xFFFFFF) != color) {
-							empty = false;
-							break firstLoop;
-						}
-					}
-				}
-				if (!empty) {
-					if (_networking.net.protocol.clearChunk(chunkX, chunkY, c)) {
-						chunk.set(color);
-					}
-				}
-			}
-		}
-
-		tool.setEvent('mousedown mousemove', function (mouse, event) {
-			if (mouse.buttons & 1) {
-        if (rainbowPressed == true) {
-          fillChunk(Math.floor(mouse.tileX / _conf.protocol.chunkSize), Math.floor(mouse.tileY / _conf.protocol.chunkSize), [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0]);
-          return 1;
-        } else {
-          fillChunk(Math.floor(mouse.tileX / _conf.protocol.chunkSize), Math.floor(mouse.tileY / _conf.protocol.chunkSize), _local_player.player.selectedColor);
-          return 1;
-        }
-			} else if (mouse.buttons & 2) {
-				fillChunk(Math.floor(mouse.tileX / _conf.protocol.chunkSize), Math.floor(mouse.tileY / _conf.protocol.chunkSize), [255, 255, 255]);
-				return 1;
-			}
-		});
-	}));
-
-  // Area erase tool
-  addTool(new Tool('Areaerase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16), _conf.RANK.ADMIN, function (tool) {
+	
+	//Area Erase
+addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16), _conf.RANK.ADMIN, function (tool) {
 		function drawText(ctx, str, x, y, centered) {
         ctx.strokeStyle = "#000000", ctx.fillStyle = "#FFFFFF", ctx.lineWidth = 2.5, ctx.globalAlpha = 0.5;
         if (centered) {
@@ -3837,8 +3571,7 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
                     finish();
                 }
             });
-        // Left click fill
-        } else if (mouse.buttons === 1 && tool.extra.end) {
+        } else if (tool.extra.end) {
             if (isInside() && sure()) {
                 tool.extra.start = null;
                 tool.extra.end = null;
@@ -3850,31 +3583,11 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 
                 for (var i = x; i < x + w; i++) {
                     for (var j = y; j < y + h; j++) {
-                      if (rainbowPressed == true) {
-                        OWOP.net.protocol.clearChunk(i, j, [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0]);
-                      } else {
+                      if (mouse.buttons & 1) {
                         OWOP.net.protocol.clearChunk(i, j, OWOP.player.selectedColor);
+                      } else {
+                        OWOP.net.protocol.clearChunk(i, j, [255,255,255]);
                       }
-                    }
-                }
-            } else if (!isInside()) {
-                tool.extra.start = null;
-                tool.extra.end = null;
-            }
-        // Right click erase
-        } else if (mouse.buttons === 2 && tool.extra.end) {
-            if (isInside() && sure()) {
-                tool.extra.start = null;
-                tool.extra.end = null;
-                var _ref = [s[0], s[1], e[0] - s[0], e[1] - s[1]],
-                    x = _ref[0],
-                    y = _ref[1],
-                    w = _ref[2],
-                    h = _ref[3];
-
-                for (var i = x; i < x + w; i++) {
-                    for (var j = y; j < y + h; j++) {
-                      OWOP.net.protocol.clearChunk(i, j, [255,255,255]);
                     }
                 }
             } else if (!isInside()) {
@@ -3883,6 +3596,39 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
             }
         }
     });
+	}));
+	
+	// Erase/Fill tool
+	addTool(new Tool('Eraser', _tool_renderer.cursors.erase, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16), _conf.RANK.ADMIN, function (tool) {
+		function fillChunk(chunkX, chunkY, c) {
+			var color = c[2] << 16 | c[1] << 8 | c[0];
+			var chunk = _main.misc.world.getChunkAt(chunkX, chunkY);
+			if (chunk) {
+				var empty = true;
+				firstLoop: for (var y = 0; y < _conf.protocol.chunkSize; y++) {
+					for (var x = 0; x < _conf.protocol.chunkSize; x++) {
+						if ((chunk.get(x, y) & 0xFFFFFF) != color) {
+							empty = false;
+							break firstLoop;
+						}
+					}
+				}
+				if (!empty) {
+					chunk.set(color);
+					_networking.net.protocol.setChunk(chunkX, chunkY, new Array(256).fill(color));
+				}
+			}
+		}
+
+		tool.setEvent('mousedown mousemove', function (mouse, event) {
+			if (mouse.buttons & 1) {
+				fillChunk(Math.floor(mouse.tileX / _conf.protocol.chunkSize), Math.floor(mouse.tileY / _conf.protocol.chunkSize), _local_player.player.selectedColor);
+				return 1;
+			} else if (mouse.buttons & 2) {
+				fillChunk(Math.floor(mouse.tileX / _conf.protocol.chunkSize), Math.floor(mouse.tileY / _conf.protocol.chunkSize), [255, 255, 255]);
+				return 1;
+			}
+		});
 	}));
 
 	// Zoom tool
@@ -3932,7 +3678,7 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 	}));
 
 	// Area to PNG tool
-	addTool(new Tool('Export', _tool_renderer.cursors.select, _Fx.PLAYERFX.NONE, _conf.RANK.NONE, function (tool) {
+	addTool(new Tool('Export', _tool_renderer.cursors.cut, _Fx.PLAYERFX.NONE, _conf.RANK.NONE, function (tool) {
 		tool.setFxRenderer(function (fx, ctx, time) {
 			if (!fx.extra.isLocalPlayer) return 1;
 			var x = fx.extra.player.x;
@@ -4125,11 +3871,7 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 
 	// Fill tool
 	addTool(new Tool('Fill', _tool_renderer.cursors.fill, _Fx.PLAYERFX.NONE, _conf.RANK.USER, function (tool) {
-		if (OWOP.player.rank == 3) {
-      tool.extra.tickAmount = 40;
-    } else {
-      tool.extra.tickAmount = 6;
-    }
+		tool.extra.tickAmount = 6;
 		var queue = [];
 		var fillingColor = null;
 		var defaultFx = _Fx.PLAYERFX.RECT_SELECT_ALIGNED(1);
@@ -4163,12 +3905,7 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 				return;
 			}
 
-			var selClr = null;
-      if (rainbowPressed == true) {
-        selClr = [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0];
-      } else {
-        selClr = OWOP.player.selectedColor;
-      }
+			var selClr = _local_player.player.selectedColor;
 			var painted = 0;
 			var tickAmount = tool.extra.tickAmount;
 			for (var painted = 0; painted < tickAmount && queue.length; painted++) {
@@ -4228,7 +3965,7 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 		});
 	}));
 
-  // Line tool
+	//Line Tool
 	addTool(new Tool('Line', _tool_renderer.cursors.wand, _Fx.PLAYERFX.NONE, _conf.RANK.USER, function (tool) {
 		var start = null;
 		var end = null;
@@ -4307,11 +4044,7 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 				}
 				if (_local_player.player.rank == _conf.RANK.ADMIN) {
 					line(start[0], start[1], end[0], end[1], function (x, y) {
-            if (rainbowPressed == true) {
-              _main.misc.world.setPixel(x, y, [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0]);
-            } else {
-						  _main.misc.world.setPixel(x, y, OWOP.player.selectedColor);
-            }
+						_main.misc.world.setPixel(x, y, _local_player.player.selectedColor);
 					});
 					start = null;
 					end = null;
@@ -4331,155 +4064,8 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 		});
 	}));
 
-  // Text tool
-  addTool(new Tool('Text', _tool_renderer.cursors.text, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16, "#000000"), _conf.RANK.ADMIN, function (tool) {
-		var xPos = null;
-    var yPos = null;
-    var fonts = {};
-    var font = null;
-    
-    var fontInput = new OWOP.windowSys.class.input("Choose Font ID",  "955,831,1192,601", "number", function(value) {
-      var id = parseInt(value);
-      if (id in fonts) {
-        font = id;
-        return;
-      }
-      
-      var xhttp = new XMLHttpRequest();
-          xhttp.addEventListener("load", function() {
-              var source = xhttp.responseXML.body.children[2].innerHTML;
-        var data = JSON.parse(source.match(/loadData\('(.+)'\)/)[1]);
-        var meta = source.match(/drawSample\('',([0-9]+),(-?[0-9]+)\)/);
-        data.letterspace = parseInt(meta[1]);
-        data.monospacewidth = parseInt(meta[2]);
-        
-              fonts[id] = data;
-        font = id;
-          });
-          xhttp.open("GET", "https://cors-anywhere.herokuapp.com/http://www.pentacom.jp/pentacom/bitfontmaker2/gallery/?id=" + id);
-          xhttp.responseType = "document";
-          xhttp.send();
-    });
-    
-    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
-      chars += "¡¢£€¤¥¦§¨©ª«¬®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ";
-      chars += "ĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĦħĨĩĪīĬĭĮįİıĲĳĴĵĶķĸĹĺĻļĽľĿŀŁłŃńŅņŇňŉŊŋŌōŎŏŐőŒœŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŦŧŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽž";
-    
-    tool.setFxRenderer(function (fx, ctx, time) {
-          var x = fx.extra.player.x;
-          var y = fx.extra.player.y;
-      if (xPos !== null && yPos !== null) {
-        x = xPos * 16;
-        y = yPos * 16;
-      }
-          var fxx = (Math.floor(x / 16) - OWOP.camera.x) * OWOP.camera.zoom;
-          var fxy = (Math.floor(y / 16) - OWOP.camera.y) * OWOP.camera.zoom;
-          ctx.globalAlpha = 0.8;
-          ctx.strokeStyle = fx.extra.player.htmlRgb;
-          ctx.strokeRect(fxx, fxy, OWOP.camera.zoom, OWOP.camera.zoom * 12);
-          return 0;
-      });
-    
-    tool.setEvent("select", function() {
-      OWOP.windowSys.addWindow(fontInput);
-    });
-    tool.setEvent("deselect", function() {
-      font = null;
-    });
-    
-    tool.setEvent("mousedown mousemove", function (mouse, event) {
-      if (mouse.buttons === 1) {
-        xPos = mouse.tileX;
-        yPos = mouse.tileY;
-      }
-    });
-    tool.setEvent("keydown", function() {return true;});
-    tool.setEvent("keyup", function() {return true;});
-    
-    window.addEventListener("keypress", function(event) {
-      if (font === null || xPos === null || yPos === null || ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
-        return;
-      }
-      
-      var f = fonts[font];
-      var letterSpacing = (f.letterspace / 64 | 0) - 1;
-      var isMono = f.monospacewidth !== -1;
-      
-      if (event.which == 32) {
-        xPos += isMono ? f.monospacewidth : 4 + letterSpacing;
-        return;
-      }
-      
-      var char = f[event.which];
-      if (!char) {
-        return;
-      }
-      
-      var width = 0;
-          for (var y=0; y<16; y++) {
-              for (var x=0; x<16; x++) { 
-                  if (char[y] & (1 << x) && x > width) width = x;
-              }
-          }
-      
-      var color = null;
-      if (rainbowPressed == true) {
-        color = [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0];
-      } else {
-        color = OWOP.player.selectedColor;
-      }
-          for (var y=0; y<16; y++) {
-              for (var x=0; x<16; x++) {
-                  if (!(char[y] & (1 << x))) {
-            continue;
-          }
-                  OWOP.world.setPixel(xPos + x - 2, yPos + y, color);
-              }
-          }
-      
-      xPos += isMono ? f.monospacewidth : width + letterSpacing;
-    });
-	}));
-
-  // Chunk protect tool
-	addTool(new Tool('Protect', _tool_renderer.cursors.shield, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16, "#000000"), _conf.RANK.MODERATOR, function (tool) {
-		tool.setFxRenderer(function (fx, ctx, time) {
-			var x = fx.extra.player.x;
-			var y = fx.extra.player.y;
-			var fxx = (Math.floor(x / 256) * 16 - _canvas_renderer.camera.x) * _canvas_renderer.camera.zoom;
-			var fxy = (Math.floor(y / 256) * 16 - _canvas_renderer.camera.y) * _canvas_renderer.camera.zoom;
-			ctx.globalAlpha = 0.5;
-			var chunkX = Math.floor(fx.extra.player.tileX / _conf.protocol.chunkSize);
-			var chunkY = Math.floor(fx.extra.player.tileY / _conf.protocol.chunkSize);
-			var chunk = _main.misc.world.getChunkAt(chunkX, chunkY);
-			if (chunk) {
-				ctx.fillStyle = chunk.locked ? "#00FF00" : "#FF0000";
-				ctx.fillRect(fxx, fxy, _canvas_renderer.camera.zoom * 16, _canvas_renderer.camera.zoom * 16);
-			}
-			return 1; /* Rendering finished (won't change on next frame) */
-		});
-		tool.setEvent('mousedown mousemove', function (mouse) {
-			var chunkX = Math.floor(mouse.tileX / _conf.protocol.chunkSize);
-			var chunkY = Math.floor(mouse.tileY / _conf.protocol.chunkSize);
-			var chunk = _main.misc.world.getChunkAt(chunkX, chunkY);
-			switch (mouse.buttons) {
-				case 1:
-					if (!chunk.locked) {
-						_networking.net.protocol.protectChunk(chunkX, chunkY, 1);
-					}
-					break;
-
-				case 2:
-					if (chunk.locked) {
-						_networking.net.protocol.protectChunk(chunkX, chunkY, 0);
-					}
-					break;
-			}
-		});
-	}));
-
-  // Chunk select protect tool (Call the cursor area protect tool)
-	addTool(new Tool('Selectprotect', _tool_renderer.cursors.selectprotect, _Fx.PLAYERFX.NONE, _conf.RANK.MODERATOR, function (tool) {
+	//Area Protect
+	addTool(new Tool('Area Protect', _tool_renderer.cursors.areaprotect, _Fx.PLAYERFX.NONE, _conf.RANK.MODERATOR, function (tool) {
 		tool.setFxRenderer(function (fx, ctx, time) {
 			if (!fx.extra.isLocalPlayer) return 1;
 			var x = fx.extra.player.x;
@@ -4516,7 +4102,7 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 				ctx.setLineDash([]);
 				var oldfont = ctx.font;
 				ctx.font = "16px sans-serif";
-				var txt = (tool.extra.isSure ? "Click again to confirm. " : !tool.extra.clicking ? "Left/Right click to add/remove protection, respectively. " : "") + '(' + Math.abs(rw) + 'x' + Math.abs(rh) + ')';
+				var txt = (tool.extra.isSure ? "Click again to confirm. " : !tool.extra.clicking ? "Left/Right click to protect/unprotect selected chunks. " : "") + '(' + Math.abs(rw) + 'x' + Math.abs(rh) + ')';
 				var txtx = window.innerWidth >> 1;
 				var txty = window.innerHeight >> 1;
 				txtx = Math.max(x, Math.min(txtx, x + w));
@@ -4565,7 +4151,7 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 			setTimeout(function () {
 				tool.extra.isSure = false;
 				timeout = null;
-			}, 1000);
+			}, 1600);
 			return false;
 		};
 
@@ -4667,12 +4253,54 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 					}
 				}
 			}
+      if (_networking.net.protocol.lockDraw == null) {
+        _networking.net.protocol.lockDraw = false;
+      } else if (_networking.net.protocol.lockDraw == true) {
+        _networking.net.protocol.lockDraw == true;
+      }
 		});
 	}));
 
-  // Clone tool
-  addTool(new Tool('Clone', _tool_renderer.cursors.clone, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16, "#000000"), _conf.RANK.ADMIN, function (tool) {
-		function drawText(ctx, str, x, y, centered) {
+//Protect Tool
+addTool(new Tool('Protect', _tool_renderer.cursors.shield, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16, "#000000"), _conf.RANK.MODERATOR, function (tool) {
+	tool.setFxRenderer(function (fx, ctx, time) {
+		var x = fx.extra.player.x;
+		var y = fx.extra.player.y;
+		var fxx = (Math.floor(x / 256) * 16 - _canvas_renderer.camera.x) * _canvas_renderer.camera.zoom;
+		var fxy = (Math.floor(y / 256) * 16 - _canvas_renderer.camera.y) * _canvas_renderer.camera.zoom;
+		ctx.globalAlpha = 0.5;
+		var chunkX = Math.floor(fx.extra.player.tileX / _conf.protocol.chunkSize);
+		var chunkY = Math.floor(fx.extra.player.tileY / _conf.protocol.chunkSize);
+		var chunk = _main.misc.world.getChunkAt(chunkX, chunkY);
+		if (chunk) {
+			ctx.fillStyle = chunk.locked ? "#00FF00" : "#FF0000";
+			ctx.fillRect(fxx, fxy, _canvas_renderer.camera.zoom * 16, _canvas_renderer.camera.zoom * 16);
+		}
+		return 1; /* Rendering finished (won't change on next frame) */
+	});
+	tool.setEvent('mousedown mousemove', function (mouse) {
+		var chunkX = Math.floor(mouse.tileX / _conf.protocol.chunkSize);
+		var chunkY = Math.floor(mouse.tileY / _conf.protocol.chunkSize);
+		var chunk = _main.misc.world.getChunkAt(chunkX, chunkY);
+		switch (mouse.buttons) {
+			case 1:
+				if (!chunk.locked) {
+					_networking.net.protocol.protectChunk(chunkX, chunkY, 1);
+				}
+				break;
+
+			case 2:
+				if (chunk.locked) {
+					_networking.net.protocol.protectChunk(chunkX, chunkY, 0);
+				}
+				break;
+		}
+	});
+}));
+
+//Copy tool
+OWOP.tool.addToolObject(new OWOP.tool.class("Copy", OWOP.cursors.copy, OWOP.fx.player.NONE, OWOP.RANK.ADMIN, function (tool) {
+    function drawText(ctx, str, x, y, centered) {
         ctx.strokeStyle = "#000000", ctx.fillStyle = "#FFFFFF", ctx.lineWidth = 2.5, ctx.globalAlpha = 0.5;
         if (centered) {
             x -= ctx.measureText(str).width >> 1;
@@ -4836,19 +4464,19 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
                 }
             }
             ctx.putImageData(d, 0, 0);
-			var stamp = OWOP.tool.allTools.stamp;
-            stamp.extra.canvas = c;
-			var oldSelect = stamp.events.select;
-			stamp.events.select = function() {
-				stamp.events.select = oldSelect;
+			var paste = OWOP.tool.allTools.paste;
+            paste.extra.canvas = c;
+			var oldSelect = paste.events.select;
+			paste.events.select = function() {
+				paste.events.select = oldSelect;
 			};
-			OWOP.player.tool = "stamp";
+			OWOP.player.tool = "paste";
         }
     });
-	}));
+}));
 
-  // Stamp tool
-	addTool(new Tool('Stamp', _tool_renderer.cursors.stamp, _Fx.PLAYERFX.NONE, _conf.RANK.ADMIN, function (tool) {
+//Paste tool 
+	addTool(new Tool('Paste', _tool_renderer.cursors.paste, _Fx.PLAYERFX.NONE, _conf.RANK.ADMIN, function (tool) {
 		tool.setFxRenderer(function (fx, ctx, time) {
 			var z = _canvas_renderer.camera.zoom;
 			var x = fx.extra.player.x;
@@ -4961,11 +4589,11 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 
 	_global.eventSys.emit(_conf.EVENTS.misc.toolsInitialized);
 });
-
+//tools tolbar
 _global.eventSys.once(_conf.EVENTS.init, function () {
 	exports.toolsWindow = toolsWindow = new _windowsys.GUIWindow('Tools', {}, function (wdow) {
 		wdow.container.id = "toole-container";
-		wdow.container.style.cssText = "max-width: 40px";
+		wdow.container.style.cssText = "max-width: 80px";
 	}).move(5, 32);
 });
 
@@ -5003,13 +4631,13 @@ exports.addWindow = addWindow;
 exports.delWindow = delWindow;
 exports.centerWindow = centerWindow;
 
-var _main = __webpack_require__(2);
+var _main = __webpack_require__(3);
 
 var _conf = __webpack_require__(1);
 
 var _global = __webpack_require__(0);
 
-var _misc = __webpack_require__(3);
+var _misc = __webpack_require__(2);
 
 var windowSys = exports.windowSys = {
 	windows: {},
@@ -5321,7 +4949,7 @@ var _networking = __webpack_require__(8);
 
 var _canvas_renderer = __webpack_require__(5);
 
-var _main = __webpack_require__(2);
+var _main = __webpack_require__(3);
 
 var _local_player = __webpack_require__(6);
 
@@ -5806,26 +5434,29 @@ var _conf = __webpack_require__(1);
 
 var _global = __webpack_require__(0);
 
+//tools position
+
 var cursors = exports.cursors = {
 	set: new Image(),
 	cursor: { imgpos: [0, 0], hotspot: [0, 0] },
 	move: { imgpos: [1, 0], hotspot: [18, 18] },
 	pipette: { imgpos: [0, 1], hotspot: [0, 28] },
 	erase: { imgpos: [0, 2], hotspot: [4, 26] },
-  areaerase: { imgpos: [4,1], hotspot: [0,0] },
 	zoom: { imgpos: [1, 2], hotspot: [19, 10] },
 	fill: { imgpos: [1, 1], hotspot: [3, 29] },
 	brush: { imgpos: [0, 3], hotspot: [0, 26] },
 	select: { imgpos: [2, 0], hotspot: [0, 0] }, // needs better hotspot
-	selectprotect: { imgpos: [4, 0], hotspot: [0, 0] },
-	clone: { imgpos: [3, 0], hotspot: [0, 0] }, // and this
-	stamp: { imgpos: [3, 1], hotspot: [10, 30] }, // this too
-	cut: { imgpos: [3, 2], hotspot: [0, 0] },
+	copy: { imgpos: [3, 0], hotspot: [0, 0] }, // and this
+	paste: { imgpos: [3, 1], hotspot: [0, 0] }, // this too
+	cut: { imgpos: [3, 2], hotspot: [11, 5] },
 	wand: { imgpos: [3, 3], hotspot: [0, 0] },
 	shield: { imgpos: [2, 3], hotspot: [18, 18] },
 	kick: { imgpos: [2, 1], hotspot: [3, 6] },
-	ban: { imgpos: [2, 2], hotspot: [10, 4] },
-	text: { imgpos: [1, 3], hotspot: [10, 4] // fix hotspot
+	areaprotect: { imgpos: [4, 0], hotspot: [0, 0] },
+	selectprotect: { imgpos: [4, 0], hotspot: [0, 0] },
+	areaerase: { imgpos: [4, 1], hotspot: [0, 0] },
+	ban: { imgpos: [3, 0], hotspot: [10, 4] },
+	write: { imgpos: [1, 3], hotspot: [10, 4] // fix hotspot
 	} };
 
 _global.PublicAPI.cursors = cursors;
@@ -5981,7 +5612,7 @@ exports.Lerp = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _misc = __webpack_require__(3);
+var _misc = __webpack_require__(2);
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -6554,7 +6185,7 @@ var _Lerp = __webpack_require__(14);
 
 var _color = __webpack_require__(4);
 
-var _main = __webpack_require__(2);
+var _main = __webpack_require__(3);
 
 var _Fx = __webpack_require__(7);
 
@@ -6701,7 +6332,7 @@ var _World = __webpack_require__(12);
 
 var _Bucket = __webpack_require__(9);
 
-var _misc = __webpack_require__(3);
+var _misc = __webpack_require__(2);
 
 var _captcha = __webpack_require__(24);
 
@@ -6711,7 +6342,7 @@ var _local_player = __webpack_require__(6);
 
 var _canvas_renderer = __webpack_require__(5);
 
-var _main = __webpack_require__(2);
+var _main = __webpack_require__(3);
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -6740,28 +6371,25 @@ var OldProtocol = exports.OldProtocol = {
 	placeBucket: (_placeBucket = {}, _defineProperty(_placeBucket, _conf.RANK.NONE, [0, 1]), _defineProperty(_placeBucket, _conf.RANK.USER, [32, 4]), _defineProperty(_placeBucket, _conf.RANK.MODERATOR, [32, 2]), _defineProperty(_placeBucket, _conf.RANK.ADMIN, [32, 0]), _placeBucket),
 	maxMessageLength: (_maxMessageLength = {}, _defineProperty(_maxMessageLength, _conf.RANK.NONE, 128), _defineProperty(_maxMessageLength, _conf.RANK.USER, 128), _defineProperty(_maxMessageLength, _conf.RANK.MODERATOR, 512), _defineProperty(_maxMessageLength, _conf.RANK.ADMIN, 16384), _maxMessageLength),
 	tools: {
-		/* Renders the tools to other players */
-		id: {}, /* Generated automatically */
+		id: {}, /* Generated automatically  showed tools*/
 		0: 'cursor',
 		1: 'move',
 		2: 'pipette',
 		3: 'eraser',
 		4: 'zoom',
 		5: 'fill',
-		6: 'stamp',
+		6: 'paste',
 		7: 'export',
 		8: 'line',
 		9: 'protect',
-    10: 'selectprotect',
-    11: 'cut',
-    12: 'clone',
-    13: 'brush',
-    14: 'text',
-    15: 'kick',
-    16: 'areaerase'
+		10: 'area protect',
+		11: 'area erase',
+		12: 'text',
+		13: 'brush',
+		14: 'copy'
 	},
 	misc: {
-		worldVerification: 4321,
+		worldVerification: 1234,
 		chatVerification: String.fromCharCode(10),
 		tokenVerification: 'CaptchA'
 	},
@@ -6919,24 +6547,22 @@ var OldProtocolImpl = function (_Protocol) {
 					updates = [];
 					for (var i = dv.getUint16(off, true), j = 0; j < i; j++) {
 						updated = true;
-						var bid = dv.getUint32(2 + off + j * 15, true);
-						var bpx = dv.getInt32(2 + off + j * 15 + 4, true);
-						var bpy = dv.getInt32(2 + off + j * 15 + 8, true);
-						var br = dv.getUint8(2 + off + j * 15 + 12);
-						var bg = dv.getUint8(2 + off + j * 15 + 13);
-						var bb = dv.getUint8(2 + off + j * 15 + 14);
+						var bpx = dv.getInt32(2 + off + j * 11, true);
+						var bpy = dv.getInt32(2 + off + j * 11 + 4, true);
+						var br = dv.getUint8(2 + off + j * 11 + 8);
+						var bg = dv.getUint8(2 + off + j * 11 + 9);
+						var bb = dv.getUint8(2 + off + j * 11 + 10);
 						var bbgr = bb << 16 | bg << 8 | br;
 						updates.push({
 							x: bpx,
 							y: bpy,
-							rgb: bbgr,
-							id: bid
+							rgb: bbgr
 						});
 					}
 					if (updated) {
 						_global.eventSys.emit(_conf.EVENTS.net.world.tilesUpdated, updates);
 					}
-					off += dv.getUint16(off, true) * 15 + 2;
+					off += dv.getUint16(off, true) * 11 + 2;
 					// Disconnects
 					var decreased = false;
 					updated = false;
@@ -7147,19 +6773,12 @@ var OldProtocolImpl = function (_Protocol) {
 		}
 	}, {
 		key: 'clearChunk',
-		value: function clearChunk(x, y, rgb) {
-			if (_local_player.player.rank == _conf.RANK.ADMIN || _local_player.player.rank == _conf.RANK.MODERATOR && this.placeBucket.canSpend(1)) {
-				var array = new ArrayBuffer(13);
-				var dv = new DataView(array);
-				dv.setInt32(0, x, true);
-				dv.setInt32(4, y, true);
-				dv.setUint8(8, rgb[0]);
-				dv.setUint8(9, rgb[1]);
-				dv.setUint8(10, rgb[2]);
-				this.ws.send(array);
-				return true;
-			}
-			return false;
+		value: function clearChunk(x, y) {
+			var array = new ArrayBuffer(9);
+			var dv = new DataView(array);
+			dv.setInt32(0, x, true);
+			dv.setInt32(4, y, true);
+			this.ws.send(array);
 		}
 	}]);
 
@@ -7256,11 +6875,11 @@ var _conf = __webpack_require__(1);
 
 var _global = __webpack_require__(0);
 
-var _misc = __webpack_require__(3);
+var _misc = __webpack_require__(2);
 
 var _windowsys = __webpack_require__(11);
 
-var _main = __webpack_require__(2);
+var _main = __webpack_require__(3);
 
 var SITEKEY = "6LcgvScUAAAAAARUXtwrM8MP0A0N70z4DHNJh-KI";
 
@@ -7304,7 +6923,15 @@ function requestVerification() {
 }
 
 function loadAndRequestCaptcha() {
-	loadCaptcha(requestVerification);
+	if (_main.misc.showEUCookieNag) {
+		_windowsys.windowSys.addWindow(new _windowsys.UtilDialog('Cookie notice', 'This box alerts you that we\'re going to use cookies!\nIf you don\'t accept their usage, disable cookies and reload the page.', false, function () {
+			(0, _misc.setCookie)('nagAccepted', 'true');
+			_main.misc.showEUCookieNag = false;
+			loadCaptcha(requestVerification);
+		}));
+	} else {
+		loadCaptcha(requestVerification);
+	}
 }
 
 /***/ }),
@@ -7336,3 +6963,4 @@ module.exports = __webpack_require__.p + "polyfill/canvas-toBlob.js";
 
 /***/ })
 /******/ ]);
+//# sourceMappingURL=app.js.map

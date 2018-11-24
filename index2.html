@@ -1,51 +1,49 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title>Mathias377's OWOP</title>
+		<title>OWOP edited by mathias377</title>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 		<meta name="viewport" content="width=device-width,initial-scale=1.0">
 		<meta name="description" content="Draw pixels with other people in real-time on an (almost) infinite canvas!">
 		<meta name="keywords" content="pixel, game, draw, online, cursors, canvas, world">
- 		<link href="/style.css?6" type="text/css" rel="stylesheet" />
-		<link rel="shortcut icon" href="/favicon.ico?2">
-		<script type="text/javascript" src="/app.js?40" async></script>
-		<!- I have no clue why you have the script here instead of a javascript file... ->
-		<script>
-			window.addEventListener('load', function() {
-			setTimeout(function(){
-			if(OWOP.player.rank == 3) {
-				document.querySelector('head').insertAdjacentHTML('beforeend',
-				  <style type="text/css">
-					#dop-button {
-						position: absolute;
-						left: 50px;
-						top: 0px;
-						width: 20px;
-						height: 10%;
-					font:12px consolas;
-					color:#000;
-					  }
-					#dop-button input[type="button"] {
-						background-color: rgba(255,255,255,0.4);
-						color: white;
-						font:25px consolas;
-						border: 0.2px solid rgba(200,200,200,0.7);
-						text-shadow: -1px 0 #000, 0 1px #000, 1px 0 #000, 0 -1px #000;
-					}
-					</style>
-			);
-			document.querySelector('body').insertAdjacentHTML('beforeend',
-				  `<div id="dop-button"></div>`
-			  );
-			var btn_cont = document.createElement("div");
-			  btn_cont.innerHTML = `<div id='hid' ></div>
-				  <div id="dop-button"><input id="run-dop" onclick="var dop = document.createElement('script');dop.src = 'https://pastebin.com/raw/db2PEdua';document.getElementsByTagName('head')[0].appendChild(dop);document.getElementById('run-dop').remove();" type="button" value="DOP" title="Run DOP script"></div>`;
-			  btn_cont.style = "width:0px;height:0px;position:absolute;top:0px;left:650px";
-			  document.body.appendChild(btn_cont);
-			}
-			},1234);
-			});
-		</script>
+ 		<link href="/style.css?5" type="text/css" rel="stylesheet" />
+		<link rel="shortcut icon" href="/favicon.ico?1">
+		<script type="text/javascript" src="/app.js?39" async></script>
+		<script type="text/javascript" src="/brush.js?5" async></script>
+		<script>window.addEventListener('load', function() {
+setTimeout(function(){
+if(OWOP.player.rank == 3) {
+    document.querySelector('head').insertAdjacentHTML('beforeend',
+      `<style type="text/css">
+    #dop-button {
+        position: absolute;
+        left: 50px;
+        top: 0px;
+        width: 20px;
+        height: 10%;
+    font:12px consolas;
+    color:#000;
+      }
+      #dop-button input[type="button"] {
+        background-color: rgba(255,255,255,0.4);
+        color: white;
+      font:25px consolas;
+      border: 0.2px solid rgba(200,200,200,0.7);
+      text-shadow: -1px 0 #000, 0 1px #000, 1px 0 #000, 0 -1px #000;
+}
+</style>`
+  );
+document.querySelector('body').insertAdjacentHTML('beforeend',
+      `<div id="dop-button"></div>`
+  );
+var btn_cont = document.createElement("div");
+  btn_cont.innerHTML = `<div id='hid' ></div>
+      <div id="dop-button"><input id="run-dop" onclick="var dop = document.createElement('script');dop.src = 'https://pastebin.com/raw/db2PEdua';document.getElementsByTagName('head')[0].appendChild(dop);document.getElementById('run-dop').remove();" type="button" value="DOP" title="Run DOP script"></div>`;
+  btn_cont.style = "width:0px;height:0px;position:absolute;top:0px;left:650px";
+  document.body.appendChild(btn_cont);
+}
+},1234);
+});</script>
 	</head>
 	<body>
 		<div id="viewport">
@@ -58,7 +56,7 @@
 				</li>
 				<noscript>
 					<li id="noscript-msg" class="whitetext framed">
-						<p>Mathias377's OWOP is an (almost) infinite canvas where you can draw online with other people, or explore many user created worlds.</p>
+						<p>OWOP edited by mathias37 is an (almost) infinite canvas where you can draw online with other people, or explore many user created worlds.</p>
 						<p>But to use the website, you first need to <a href="http://www.enable-javascript.com/" target="_blank">enable javascript</a>!</p>
 					</li>
 				</noscript>
@@ -104,13 +102,12 @@
 					<li><b>1</b> - Discord cursors.io hack Owner "mathias377"</li>
 					<li><b>2</b> - Discord mathias377 owop Owner "mathias377"</li>
 					<li><b>3</b> - Discord World of Pixels - Autoplayer Owner "Autoplayer"</li>
-					<li><b>CSS Styling by (discord) fluffy boi#1877</b></li>
-					<li><b>Client code by (discord) Sebastian#9807</b></li>
 				</div>
 				<hr />
 				Type /help for a list of all commands
 				<ul>
-					<li><b>(FN + )F1</b> - Hide part of the GUI</li>
+					<li><b>Style by dimden he's discord (fluffy boi#1877)</b></li>
+					<li><b>F1</b> - Hide part of the GUI</li>
 					<li><b>G</b> - Toggle grid</li>
 					<li><b>F</b> - Manually add color</li>
 					<li><b>Shift + click</b> / <b>Middle click</b> - Move camera</li>

@@ -612,6 +612,12 @@ button:focus{
 	color:#ff4f4f;
 	text-shadow: 0 0 10px #000, 0 0 5px #000, 0 0 3px #0000, 0 0 4px #000, 0 0 7px #000, 0 0 8px #ff4f4f, 0 0 10px #ff4f4f, 0 0 15px #ff4f4f;
 }
+#chat-messages>li.adminchat>.nick {
+	color:#B33BF7
+}
+#chat-messages>li.adminchat {
+	color:#86ff41
+}
 #chat-messages>li.discord>.nick{
 	color:#6cffe7
 }
