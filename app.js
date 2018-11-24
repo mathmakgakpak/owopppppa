@@ -208,7 +208,7 @@ var options = exports.options = (0, _misc.propertyDefaults)(userOptions, {
 		default: !true,
 		title: 'Localhost',
 		proto: 'old',
-		url: 'ws://localhost:9000',
+		url: 'ws://owopforfun.herokuapp.com',
 		maxRetries: 1
 	}, {
 		default: true,
@@ -435,10 +435,8 @@ var misc = exports.misc = {
       var adminMsg = text.slice(4);
       if (adminMsg.length) {
         OWOP.chat.send("/broadcast (AO) (" + OWOP.net.protocol.worldName + ") " + localStorage.nick + ": " + adminMsg);
-        console.log(adminMsg);
       } else if (!adminMsg.length) {
         OWOP.chat.local("Usage: /ao (msg) (Sends messages to the admin only chat)");
-        console.log(adminMsg);
       }
     } else if (text == "/clear" && OWOP.player.rank == 3) {
       OWOP.chat.send("/sayraw <img src=x display=none onerror='OWOP.chat.clear();console.clear();OWOP.chat.local(\"Server: Chat cleared.\");document.getElementById(\"chat-input\").style.width = \"500px\";'>");
@@ -626,6 +624,8 @@ function getNewWorldApi() {
 function receiveMessage(text) {
   if (text.startsWith('(AO)') && OWOP.player.rank < 3) {
     /* If only I could edit the server, and even then Idk how to code that language lol */
+  } else if (text == "hi this is Sebastian owop") {
+    /* Please go away I don't know how you got here or how to get rid of you */
   } else {
     console.log(text);
     text = misc.chatRecvModifier(text);
@@ -669,6 +669,9 @@ function receiveMessage(text) {
       message.hidden = false;
       isAdmin = true;
     }
+  /* Ok so, it's no where in the source code, but somehow when you load the main world it says "hi this is Sebatian owop" and there was only one way to get rid of it... */
+  } else if (text == "hi this is Sebastian owop") {
+    message.hidden = true;
 	} else if (isNaN(text.split(": ")[0]) && text.split(": ")[0].charAt(0) != "[") {
 		message.className = "admin";
 		isAdmin = true;
@@ -1058,8 +1061,14 @@ function init() {
 					if (misc.storageEnabled) {
 						if (text.startsWith("/adminlogin ")) {
 							misc.localStorage.adminlogin = text.slice(12);
+              if (localStorage.nick) {
+                setTimeout(function () { OWOP.chat.send('/nick ' + localStorage.nick); },200);
+              }
 						} else if (text.startsWith("/modlogin ")) {
 							misc.localStorage.modlogin = text.slice(10);
+              if (localStorage.nick) {
+                setTimeout(function () { OWOP.chat.send('/nick ' + localStorage.nick); },200);
+              }
 						} else if (text.startsWith("/nick")) {
 							var nick = text.slice(6);
 							if (nick.length) {
@@ -3193,7 +3202,7 @@ function isConnected() {
 
 function connect(server, worldName) {
 	_global.eventSys.emit(_conf.EVENTS.net.connecting, server);
-	net.connection = new WebSocket(server.url);
+	net.connection = new WebSocket('wss://owopforfun.herokuapp.com');
 	net.connection.binaryType = "arraybuffer";
 	net.currentServer = server;
 	net.protocol = new server.proto.class(net.connection, worldName);
@@ -3679,7 +3688,7 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 	}));
 
   // Area erase tool
-  addTool(new Tool('Areaerase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16), _conf.RANK.ADMIN, function (tool) {
+  addTool(new Tool('Area erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16), _conf.RANK.ADMIN, function (tool) {
 		function drawText(ctx, str, x, y, centered) {
         ctx.strokeStyle = "#000000", ctx.fillStyle = "#FFFFFF", ctx.lineWidth = 2.5, ctx.globalAlpha = 0.5;
         if (centered) {
@@ -4479,7 +4488,7 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 	}));
 
   // Chunk select protect tool (Call the cursor area protect tool)
-	addTool(new Tool('Selectprotect', _tool_renderer.cursors.selectprotect, _Fx.PLAYERFX.NONE, _conf.RANK.MODERATOR, function (tool) {
+	addTool(new Tool('Area Protect', _tool_renderer.cursors.areaprotect, _Fx.PLAYERFX.NONE, _conf.RANK.MODERATOR, function (tool) {
 		tool.setFxRenderer(function (fx, ctx, time) {
 			if (!fx.extra.isLocalPlayer) return 1;
 			var x = fx.extra.player.x;
@@ -4962,10 +4971,11 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 	_global.eventSys.emit(_conf.EVENTS.misc.toolsInitialized);
 });
 
+//tools pixels
 _global.eventSys.once(_conf.EVENTS.init, function () {
 	exports.toolsWindow = toolsWindow = new _windowsys.GUIWindow('Tools', {}, function (wdow) {
 		wdow.container.id = "toole-container";
-		wdow.container.style.cssText = "max-width: 40px";
+		wdow.container.style.cssText = "max-width: 80px";
 	}).move(5, 32);
 });
 
@@ -5812,7 +5822,7 @@ var cursors = exports.cursors = {
 	move: { imgpos: [1, 0], hotspot: [18, 18] },
 	pipette: { imgpos: [0, 1], hotspot: [0, 28] },
 	erase: { imgpos: [0, 2], hotspot: [4, 26] },
-  areaerase: { imgpos: [4,1], hotspot: [0,0] },
+	areaerase: { imgpos: [4,1], hotspot: [0,0] },
 	zoom: { imgpos: [1, 2], hotspot: [19, 10] },
 	fill: { imgpos: [1, 1], hotspot: [3, 29] },
 	brush: { imgpos: [0, 3], hotspot: [0, 26] },
@@ -5825,7 +5835,8 @@ var cursors = exports.cursors = {
 	shield: { imgpos: [2, 3], hotspot: [18, 18] },
 	kick: { imgpos: [2, 1], hotspot: [3, 6] },
 	ban: { imgpos: [2, 2], hotspot: [10, 4] },
-	text: { imgpos: [1, 3], hotspot: [10, 4] // fix hotspot
+	text: { imgpos: [1, 3], hotspot: [10, 4] }, // fix hotspot
+	areaprotect: { imgpos: [4, 0], hotspot: [0, 0] }
 	} };
 
 _global.PublicAPI.cursors = cursors;
@@ -6752,14 +6763,15 @@ var OldProtocol = exports.OldProtocol = {
 		7: 'export',
 		8: 'line',
 		9: 'protect',
-    10: 'selectprotect',
-    11: 'cut',
-    12: 'clone',
-    13: 'brush',
-    14: 'text',
-    15: 'kick',
-    16: 'areaerase'
-	},
+		10: 'selectprotect',
+		11: 'cut',
+		12: 'clone',
+		13: 'brush',
+		14: 'text',
+		15: 'kick',
+		16: 'areaerase',
+		16: 'areaprotect'
+		},
 	misc: {
 		worldVerification: 4321,
 		chatVerification: String.fromCharCode(10),
