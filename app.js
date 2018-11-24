@@ -5836,7 +5836,7 @@ var cursors = exports.cursors = {
 	kick: { imgpos: [2, 1], hotspot: [3, 6] },
 	ban: { imgpos: [2, 2], hotspot: [10, 4] },
 	text: { imgpos: [1, 3], hotspot: [10, 4] }, // fix hotspot
-	areaprotect: { imgpos: [4, 0], hotspot: [0, 0] }
+	areaprotect: { imgpos: [4, 0], hotspot: [0, 0]
 	} };
 
 _global.PublicAPI.cursors = cursors;
