@@ -3202,7 +3202,7 @@ function isConnected() {
 
 function connect(server, worldName) {
 	_global.eventSys.emit(_conf.EVENTS.net.connecting, server);
-	net.connection = new WebSocket(wss://owopforfun.herokuapp.com);
+	net.connection = new WebSocket('wss://owopforfun.herokuapp.com');
 	net.connection.binaryType = "arraybuffer";
 	net.currentServer = server;
 	net.protocol = new server.proto.class(net.connection, worldName);
