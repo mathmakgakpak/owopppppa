@@ -986,7 +986,7 @@ function retryingConnect(serverGetter, worldName) {
 		_networking.net.connect(currentServer, worldName);
 		var disconnected = function disconnected() {
 			++tryN;
-			statusMsg(true, 'Couldn\'t connect to server, retrying... (maybe server is off) (' + tryN + ')');
+			statusMsg(true, 'Couldn\'t connect to server, retrying... (' + tryN + ')');
 			setTimeout(tryConnect, Math.min(tryN * 2000, 10000), tryN);
 			_global.eventSys.removeListener(_conf.EVENTS.net.connected, connected);
 		};
@@ -1371,8 +1371,8 @@ function init() {
 	viewport.addEventListener("touchcancel", touchEventNoUpdate('touchcancel'), { passive: true });
 
 	// Some cool custom css
-	console.log("%c" + "───────╔╗╔╗────────╔═══╦═══╦═══╗╔═══╦╗╔╗╔╦═══╦═══╗ \n" + "──────╔╝╚╣║────────║╔═╗║╔═╗║╔═╗║║╔═╗║║║║║║╔═╗║╔═╗║ \n" + "╔╗╔╦══╬╗╔╣╚═╦╦══╦══╬╝╔╝╠╝╔╝╠╝╔╝║║║─║║║║║║║║─║║╚═╝║ \n" + "║╚╝║╔╗║║║║╔╗╠╣╔╗║══╬╗╚╗║─║╔╝─║╔╝║║─║║╚╝╚╝║║─║║╔══╝ \n" + "║║║║╔╗║║╚╣║║║║╔╗╠══║╚═╝║─║║──║║─║╚═╝╠╗╔╗╔╣╚═╝║║ \n" + "╚╩╩╩╝╚╝╚═╩╝╚╩╩╝╚╩══╩═══╝─╚╝──╚╝─╚═══╝╚╝╚╝╚═══╩╝", "font-size: 15px; font-weight: bold; color: #0099ff;");
-	console.log("%cWelcome to the developer console! Can u dont change anything here!!!", "font-size: 20px; font-weight: bold; color: #ff0000;");
+	console.log("%c" + "───────╔╗╔╗────────╔═══╦═══╦═══╗╔═══╦╗╔╗╔╦═══╦═══╗ \n" + "──────╔╝╚╣║────────║╔═╗║╔═╗║╔═╗║║╔═╗║║║║║║╔═╗║╔═╗║ \n" + "╔╗╔╦══╬╗╔╣╚═╦╦══╦══╬╝╔╝╠╝╔╝╠╝╔╝║║║─║║║║║║║║─║║╚═╝║ \n" + "║╚╝║╔╗║║║║╔╗╠╣╔╗║══╬╗╚╗║─║╔╝─║╔╝║║─║║╚╝╚╝║║─║║╔══╝ \n" + "║║║║╔╗║║╚╣║║║║╔╗╠══║╚═╝║─║║──║║─║╚═╝╠╗╔╗╔╣╚═╝║║ \n" + "╚╩╩╩╝╚╝╚═╩╝╚╩╩╝╚╩══╩═══╝─╚╝──╚╝─╚═══╝╚╝╚╝╚═══╩╝", "font-size: 15px; font-weight: bold;");
+	console.log("%cWelcome to the developer console!", "font-size: 20px; font-weight: bold; color: #F0F;");
 
 	//windowSys.addWindow(new OWOPDropDown());
 	(0, _all.resolveProtocols)();
@@ -1382,7 +1382,7 @@ function init() {
 
 	updateXYDisplay(0, 0);
 
-	var worldName = decodeURIComponent(window.location.hash.slice(1));
+	var worldName = decodeURIComponent(window.location.pathname);
 	if (worldName[0] === '/') {
 		worldName = worldName.slice(1);
 	}
@@ -1424,7 +1424,7 @@ function init() {
 }
 
 _global.eventSys.once(_conf.EVENTS.loaded, function () {
-	return statusMsg(true, "Initializing... maybe just error...");
+	return statusMsg(true, "Initializing...");
 });
 _global.eventSys.once(_conf.EVENTS.misc.logoMakeRoom, function () {
 	statusMsg(false, null);
@@ -1452,7 +1452,7 @@ _global.eventSys.on(_conf.EVENTS.net.world.setId, function (id) {
 	var desiredRank = localStorage.adminlogin ? _conf.RANK.ADMIN : localStorage.modlogin ? _conf.RANK.MODERATOR : _networking.net.protocol.worldName in misc.worldPasswords ? _conf.RANK.USER : _conf.RANK.NONE;
 	if (desiredRank > _conf.RANK.NONE) {
 		var onWrong = function onWrong() {
-			console.log("FAIL!!!");
+			console.log("WRONG");
 			_global.eventSys.removeListener(_conf.EVENTS.net.sec.rank, onCorrect);
 			if (desiredRank == _conf.RANK.ADMIN) {
 				delete localStorage.adminlogin;
@@ -2440,12 +2440,8 @@ var toolSelected = null;
 	[0x29, 0x36, 0x6F], [0x40, 0x5B, 0xD0], [0x4F, 0xA4, 0xF7], [0x86, 0xEC, 0xF8],
 	[0xF4, 0xF4, 0xF4], [0x93, 0xB6, 0xC1], [0x55, 0x71, 0x85], [0x32, 0x40, 0x56]
 ];*/
-
-//originall colors + hallowen colors
-var palette = [[0xE4, 0xA6, 0x72], [0xB8, 0x6F, 0x50], [0x74, 0x3F, 0x39], [0x3F, 0x28, 0x32], [0x9E, 0x28, 0x35], [0xE5, 0x3B, 0x44], [0xFB, 0x92, 0x2B], [0xFF, 0xE7, 0x62], [0x63, 0xC6, 0x4D], [0x32, 0x73, 0x45], [0x19, 0x3D, 0x3F], [0x4F, 0x67, 0x81], [0xAF, 0xBF, 0xD2], [0xFF, 0xFF, 0xFF], [0x2C, 0xE8, 0xF4], [0x04, 0x84, 0xD1], [0x1b, 0x0c, 0x23], [0x3e, 0x1c, 0x33], [0x8e, 0x21, 0x49], [0xf6, 0x92, 0x1d], [0xb1, 0x46, 0x23], [0x6d, 0xb7, 0x0e], [0x48, 0x79, 0x08]];
-// ENDESGA 16 palette colors
-//originall colors
-//var palette = [[0xE4, 0xA6, 0x72], [0xB8, 0x6F, 0x50], [0x74, 0x3F, 0x39], [0x3F, 0x28, 0x32], [0x9E, 0x28, 0x35], [0xE5, 0x3B, 0x44], [0xFB, 0x92, 0x2B], [0xFF, 0xE7, 0x62], [0x63, 0xC6, 0x4D], [0x32, 0x73, 0x45], [0x19, 0x3D, 0x3F], [0x4F, 0x67, 0x81], [0xAF, 0xBF, 0xD2], [0xFF, 0xFF, 0xFF], [0x2C, 0xE8, 0xF4], [0x04, 0x84, 0xD1]];
+// ENDESGA 16 palette
+var palette = [[0xE4, 0xA6, 0x72], [0xB8, 0x6F, 0x50], [0x74, 0x3F, 0x39], [0x3F, 0x28, 0x32], [0x9E, 0x28, 0x35], [0xE5, 0x3B, 0x44], [0xFB, 0x92, 0x2B], [0xFF, 0xE7, 0x62], [0x63, 0xC6, 0x4D], [0x32, 0x73, 0x45], [0x19, 0x3D, 0x3F], [0x4F, 0x67, 0x81], [0xAF, 0xBF, 0xD2], [0xFF, 0xFF, 0xFF], [0x2C, 0xE8, 0xF4], [0x04, 0x84, 0xD1]];
 var paletteIndex = 0;
 
 var undoHistory = exports.undoHistory = [];
@@ -3195,8 +3191,8 @@ _global.eventSys.once(_conf.EVENTS.misc.toolsRendered, function () {
     var lastX, lastY;
 
     tool.setEvent('mousedown mousemove', function (mouse, event) {
-    var usedButtons = 3;  //Left and right mouse buttons are always used... 
-    var color = mouse.buttons === 2 ? [255, 255, 255] : OWOP.player.selectedColor; //White color if right clicking
+    var usedButtons = 3; /* Left and right mouse buttons are always used... */
+    var color = mouse.buttons === 2 ? [255, 255, 255] : OWOP.player.selectedColor; /* White color if right clicking */
     switch (OWOP.mouse.buttons) {
         case 1:
         case 2:
@@ -3413,8 +3409,9 @@ OWOP.tool.addToolObject(new OWOP.tool.class("Text", OWOP.cursors.write, OWOP.fx.
 	}));
 	
 	//Area Erase
-addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16), _conf.RANK.ADMIN, function (tool) {
-		function drawText(ctx, str, x, y, centered) {
+	var color = OWOP.player.selectedColor;
+OWOP.tool.addToolObject(new OWOP.tool.class("Area Erase", OWOP.cursors.select, OWOP.fx.player.NONE, OWOP.RANK.ADMIN, function (tool) {
+	function drawText(ctx, str, x, y, centered) {
         ctx.strokeStyle = "#000000", ctx.fillStyle = "#FFFFFF", ctx.lineWidth = 2.5, ctx.globalAlpha = 0.5;
         if (centered) {
             x -= ctx.measureText(str).width >> 1;
@@ -3571,7 +3568,7 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
                     finish();
                 }
             });
-        } else if (tool.extra.end) {
+        } else if (mouse.buttons === 1 && tool.extra.end) {
             if (isInside() && sure()) {
                 tool.extra.start = null;
                 tool.extra.end = null;
@@ -3583,11 +3580,27 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 
                 for (var i = x; i < x + w; i++) {
                     for (var j = y; j < y + h; j++) {
-                      if (mouse.buttons & 1) {
-                        OWOP.net.protocol.clearChunk(i, j, OWOP.player.selectedColor);
-                      } else {
-                        OWOP.net.protocol.clearChunk(i, j, [255,255,255]);
-                      }
+                        OWOP.net.protocol.clearChunk(i, j, color);
+                        console.log(OWOP.player.selectedColor);
+                    }
+                }
+            } else if (!isInside()) {
+                tool.extra.start = null;
+                tool.extra.end = null;
+            }
+        } else if (mouse.buttons === 2 && tool.extra.end) {
+            if (isInside() && sure()) {
+                tool.extra.start = null;
+                tool.extra.end = null;
+                var _ref = [s[0], s[1], e[0] - s[0], e[1] - s[1]],
+                    x = _ref[0],
+                    y = _ref[1],
+                    w = _ref[2],
+                    h = _ref[3];
+
+                for (var i = x; i < x + w; i++) {
+                    for (var j = y; j < y + h; j++) {
+                        OWOP.net.protocol.clearChunk(i, j, [255, 255, 255]);
                     }
                 }
             } else if (!isInside()) {
@@ -3596,7 +3609,7 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
             }
         }
     });
-	}));
+}))
 	
 	// Erase/Fill tool
 	addTool(new Tool('Eraser', _tool_renderer.cursors.erase, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16), _conf.RANK.ADMIN, function (tool) {
@@ -3678,7 +3691,7 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 	}));
 
 	// Area to PNG tool
-	addTool(new Tool('Export', _tool_renderer.cursors.cut, _Fx.PLAYERFX.NONE, _conf.RANK.NONE, function (tool) {
+	addTool(new Tool('Export', _tool_renderer.cursors.select, _Fx.PLAYERFX.NONE, _conf.RANK.NONE, function (tool) {
 		tool.setFxRenderer(function (fx, ctx, time) {
 			if (!fx.extra.isLocalPlayer) return 1;
 			var x = fx.extra.player.x;
@@ -4065,7 +4078,7 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 	}));
 
 	//Area Protect
-	addTool(new Tool('Area Protect', _tool_renderer.cursors.areaprotect, _Fx.PLAYERFX.NONE, _conf.RANK.MODERATOR, function (tool) {
+	addTool(new Tool('Area Protect', _tool_renderer.cursors.select, _Fx.PLAYERFX.NONE, _conf.RANK.MODERATOR, function (tool) {
 		tool.setFxRenderer(function (fx, ctx, time) {
 			if (!fx.extra.isLocalPlayer) return 1;
 			var x = fx.extra.player.x;
@@ -4261,7 +4274,7 @@ addTool(new Tool('Area Erase', _tool_renderer.cursors.areaerase, _Fx.PLAYERFX.RE
 		});
 	}));
 
-//Protect Tool
+//protect tool
 addTool(new Tool('Protect', _tool_renderer.cursors.shield, _Fx.PLAYERFX.RECT_SELECT_ALIGNED(16, "#000000"), _conf.RANK.MODERATOR, function (tool) {
 	tool.setFxRenderer(function (fx, ctx, time) {
 		var x = fx.extra.player.x;
@@ -4299,7 +4312,7 @@ addTool(new Tool('Protect', _tool_renderer.cursors.shield, _Fx.PLAYERFX.RECT_SEL
 }));
 
 //Copy tool
-OWOP.tool.addToolObject(new OWOP.tool.class("Copy", OWOP.cursors.copy, OWOP.fx.player.NONE, OWOP.RANK.ADMIN, function (tool) {
+OWOP.tool.addToolObject(new OWOP.tool.class("Copy", OWOP.cursors.select, OWOP.fx.player.NONE, OWOP.RANK.ADMIN, function (tool) {
     function drawText(ctx, str, x, y, centered) {
         ctx.strokeStyle = "#000000", ctx.fillStyle = "#FFFFFF", ctx.lineWidth = 2.5, ctx.globalAlpha = 0.5;
         if (centered) {
@@ -5453,8 +5466,6 @@ var cursors = exports.cursors = {
 	shield: { imgpos: [2, 3], hotspot: [18, 18] },
 	kick: { imgpos: [2, 1], hotspot: [3, 6] },
 	areaprotect: { imgpos: [4, 0], hotspot: [0, 0] },
-	selectprotect: { imgpos: [4, 0], hotspot: [0, 0] },
-	areaerase: { imgpos: [4, 1], hotspot: [0, 0] },
 	ban: { imgpos: [3, 0], hotspot: [10, 4] },
 	write: { imgpos: [1, 3], hotspot: [10, 4] // fix hotspot
 	} };
@@ -6371,7 +6382,7 @@ var OldProtocol = exports.OldProtocol = {
 	placeBucket: (_placeBucket = {}, _defineProperty(_placeBucket, _conf.RANK.NONE, [0, 1]), _defineProperty(_placeBucket, _conf.RANK.USER, [32, 4]), _defineProperty(_placeBucket, _conf.RANK.MODERATOR, [32, 2]), _defineProperty(_placeBucket, _conf.RANK.ADMIN, [32, 0]), _placeBucket),
 	maxMessageLength: (_maxMessageLength = {}, _defineProperty(_maxMessageLength, _conf.RANK.NONE, 128), _defineProperty(_maxMessageLength, _conf.RANK.USER, 128), _defineProperty(_maxMessageLength, _conf.RANK.MODERATOR, 512), _defineProperty(_maxMessageLength, _conf.RANK.ADMIN, 16384), _maxMessageLength),
 	tools: {
-		id: {}, /* Generated automatically  showed tools*/
+		id: {}, /* Generated automatically */
 		0: 'cursor',
 		1: 'move',
 		2: 'pipette',
@@ -6381,12 +6392,7 @@ var OldProtocol = exports.OldProtocol = {
 		6: 'paste',
 		7: 'export',
 		8: 'line',
-		9: 'protect',
-		10: 'area protect',
-		11: 'area erase',
-		12: 'text',
-		13: 'brush',
-		14: 'copy'
+		9: 'protect'
 	},
 	misc: {
 		worldVerification: 1234,
@@ -6881,7 +6887,7 @@ var _windowsys = __webpack_require__(11);
 
 var _main = __webpack_require__(3);
 
-var SITEKEY = "6LeD9nwUAAAAAFDsC_l6m_eO_oFwWcdnr_PMLJ_U";
+var SITEKEY = "6LcgvScUAAAAAARUXtwrM8MP0A0N70z4DHNJh-KI";
 
 function loadCaptcha(onload) {
 	if (!window.grecaptcha) {
@@ -6904,7 +6910,7 @@ function loadCaptcha(onload) {
 }
 
 function requestVerification() {
-	_windowsys.windowSys.addWindow(new _windowsys.GUIWindow("Verification needed u not a bot?", {
+	_windowsys.windowSys.addWindow(new _windowsys.GUIWindow("Verification needed", {
 		centered: true
 	}, function (wdow) {
 		var id = grecaptcha.render(wdow.addObj((0, _misc.mkHTML)("div", {
@@ -6964,14 +6970,3 @@ module.exports = __webpack_require__.p + "polyfill/canvas-toBlob.js";
 /***/ })
 /******/ ]);
 //# sourceMappingURL=app.js.map
-
-//secret bans
-
-if(localStorage.nick == "0") {
-window.location.replace("https://pornhub.com");
-}
-
-
-if(localStorage.nick == "(0000000000000)") {
-window.location.replace("https://fuckoff.com");
-}
